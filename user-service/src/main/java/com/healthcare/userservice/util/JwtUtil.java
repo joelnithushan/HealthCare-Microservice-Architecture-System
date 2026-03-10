@@ -2,12 +2,13 @@ package com.healthcare.userservice.util;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -16,9 +17,12 @@ import java.util.function.Function;
 @Component
 public class JwtUtil {
 
-    private final SecretKey secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS256);
-
+    private final SecretKey secretKey;
     private final long jwtExpirationInMs = 86400000;
+
+    public JwtUtil(@Value("${jwt.secret}") String secret) {
+        this.secretKey = Keys.hmacShaKeyFor(Base64.getDecoder().decode(secret));
+    }
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
