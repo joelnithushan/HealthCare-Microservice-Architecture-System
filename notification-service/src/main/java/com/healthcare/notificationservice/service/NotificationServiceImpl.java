@@ -2,6 +2,7 @@ package com.healthcare.notificationservice.service;
 
 import com.healthcare.notificationservice.dto.NotificationRequest;
 import com.healthcare.notificationservice.dto.NotificationResponse;
+import com.healthcare.notificationservice.exception.ResourceNotFoundException;
 import com.healthcare.notificationservice.model.Notification;
 import com.healthcare.notificationservice.model.NotificationStatus;
 import com.healthcare.notificationservice.model.NotificationType;
@@ -41,7 +42,7 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public NotificationResponse markNotificationAsRead(Long id) {
         Notification notification = notificationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Notification not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Notification not found with ID: " + id));
         notification.setStatus(NotificationStatus.READ);
         Notification updated = notificationRepository.save(notification);
         return mapToResponse(updated);
@@ -50,7 +51,7 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public void deleteNotification(Long id) {
         Notification notification = notificationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Notification not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Notification not found with ID: " + id));
         notificationRepository.delete(notification);
     }
 
