@@ -29,9 +29,9 @@ public class AdminUserController {
         List<UserResponse> allUsers = userService.getAllUsers();
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalUsers", allUsers.size());
-        stats.put("patients", allUsers.stream().filter(u -> "PATIENT".equals(u.getRole())).count());
-        stats.put("doctors", allUsers.stream().filter(u -> "DOCTOR".equals(u.getRole())).count());
-        stats.put("admins", allUsers.stream().filter(u -> "ADMIN".equals(u.getRole())).count());
+        stats.put("patients", allUsers.stream().filter(u -> u.getRole() != null && "PATIENT".equals(u.getRole().name())).count());
+        stats.put("doctors", allUsers.stream().filter(u -> u.getRole() != null && "DOCTOR".equals(u.getRole().name())).count());
+        stats.put("admins", allUsers.stream().filter(u -> u.getRole() != null && "ADMIN".equals(u.getRole().name())).count());
         return ResponseEntity.ok(stats);
     }
 
