@@ -43,4 +43,9 @@ public class DoctorController {
         doctorService.deleteDoctor(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/specialization/{specialization}")
+    public ResponseEntity<List<DoctorResponse>> getDoctorsBySpecialization(@PathVariable String specialization) {
+        return ResponseEntity.ok(doctorService.getDoctorsBySpecialization(specialization));
+    }
 }

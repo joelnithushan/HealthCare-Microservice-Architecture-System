@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -66,6 +67,59 @@ public class DoctorServiceImpl implements DoctorService {
         doctorRepository.delete(doctor);
     }
 
+    @Override
+    public List<DoctorResponse> getDoctorsBySpecialization(String specialization) {
+        return doctorRepository.findBySpecializationContainingIgnoreCase(specialization)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public DoctorResponse verifyDoctor(Long id) {
+        Doctor doctor = doctorRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Doctor not found with ID: " + id));
+        doctor.setVerified(true);
+        doctor.setVerifiedAt(java.time.LocalDateTime.now());
+        Doctor updated = doctorRepository.save(doctor);
+        return mapToResponse(updated);
+    }
+
+    @Override
+    public DoctorResponse rejectDoctor(Long id) {
+        Doctor doctor = doctorRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Doctor not found with ID: " + id));
+        doctor.setVerified(false);
+        doctor.setVerifiedAt(null);
+        Doctor updated = doctorRepository.save(doctor);
+        return mapToResponse(updated);
+    }
+
+    @Override
+    public List<DoctorResponse> getUnverifiedDoctors() {
+        return doctorRepository.findByVerified(false)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<DoctorResponse> getVerifiedDoctors() {
+        return doctorRepository.findByVerified(true)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public Map<String, Object> getDoctorStats() {
+        Map<String, Object> stats = new java.util.HashMap<>();
+        stats.put("totalDoctors", doctorRepository.count());
+        stats.put("verifiedDoctors", doctorRepository.countByVerified(true));
+        stats.put("pendingVerification", doctorRepository.countByVerified(false));
+        return stats;
+    }
+
     private DoctorResponse mapToResponse(Doctor doctor) {
         DoctorResponse response = new DoctorResponse();
         response.setId(doctor.getId());
@@ -74,6 +128,7 @@ public class DoctorServiceImpl implements DoctorService {
         response.setSpecialization(doctor.getSpecialization());
         response.setPhone(doctor.getPhone());
         response.setAvailability(doctor.getAvailability());
+        response.setVerified(doctor.isVerified());
         return response;
     }
 }

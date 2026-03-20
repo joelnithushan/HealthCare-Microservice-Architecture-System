@@ -7,6 +7,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "doctors")
 public class Doctor {
@@ -25,6 +27,11 @@ public class Doctor {
     private String phone;
 
     private String availability;
+
+    @Column(nullable = false)
+    private boolean verified = false;
+
+    private LocalDateTime verifiedAt;
 
     public Doctor() {
     }
@@ -84,5 +91,21 @@ public class Doctor {
 
     public void setAvailability(String availability) {
         this.availability = availability;
+    }
+
+    public boolean isVerified() {
+        return verified;
+    }
+
+    public void setVerified(boolean verified) {
+        this.verified = verified;
+    }
+
+    public LocalDateTime getVerifiedAt() {
+        return verifiedAt;
+    }
+
+    public void setVerifiedAt(LocalDateTime verifiedAt) {
+        this.verifiedAt = verifiedAt;
     }
 }

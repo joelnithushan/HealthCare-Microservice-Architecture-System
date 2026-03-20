@@ -8,6 +8,7 @@ public class DoctorResponse {
     private String specialization;
     private String phone;
     private String availability;
+    private boolean verified;
 
     public DoctorResponse() {
     }
@@ -68,5 +69,13 @@ public class DoctorResponse {
 
     public void setAvailability(String availability) {
         this.availability = availability;
+    }
+
+    public boolean isVerified() {
+        return verified;
+    }
+
+    public void setVerified(boolean verified) {
+        this.verified = verified;
     }
 }
