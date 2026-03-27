@@ -53,7 +53,7 @@ public class UserServiceImpl implements UserService {
                 savedUser.getRole().name(),
                 savedUser.getId());
 
-        return new AuthResponse(token);
+        return new AuthResponse(token, mapToResponse(savedUser));
     }
 
     @Override
@@ -68,7 +68,9 @@ public class UserServiceImpl implements UserService {
                 userDetails.getUser().getRole().name(),
                 userDetails.getUser().getId());
 
-        return new AuthResponse(token);
+        AuthResponse response = new AuthResponse(token, mapToResponse(userDetails.getUser()));
+        System.out.println("DEBUG: Login User: " + response.getUser().getName() + " with role " + response.getUser().getRole());
+        return response;
     }
 
     @Override
