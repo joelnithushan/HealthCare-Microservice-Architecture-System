@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: symptom-checker-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: symptom-checker-service
+  template:
+    metadata:
+      labels:
+        app: symptom-checker-service
+    spec:
+      containers:
+        - name: symptom-checker-service
+          image: symptom-checker-service:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8087
+          envFrom:
+            - configMapRef:
+                name: healthcare-config
+            - secretRef:
+                name: healthcare-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: symptom-checker-service
+spec:
+  selector:
+    app: symptom-checker-service
+  ports:
+    - protocol: TCP
+      port: 8087
+      targetPort: 8087
