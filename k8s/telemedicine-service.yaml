@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telemedicine-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: telemedicine-service
+  template:
+    metadata:
+      labels:
+        app: telemedicine-service
+    spec:
+      containers:
+        - name: telemedicine-service
+          image: telemedicine-service:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8086
+          envFrom:
+            - configMapRef:
+                name: healthcare-config
+            - secretRef:
+                name: healthcare-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: telemedicine-service
+spec:
+  selector:
+    app: telemedicine-service
+  ports:
+    - protocol: TCP
+      port: 8086
+      targetPort: 8086
