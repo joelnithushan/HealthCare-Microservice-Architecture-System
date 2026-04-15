@@ -33,10 +33,26 @@ public class AppointmentController {
         return ResponseEntity.ok(appointmentService.getAppointmentById(id));
     }
 
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<AppointmentResponse>> getAppointmentsByPatientId(@PathVariable Long userId) {
+        return ResponseEntity.ok(appointmentService.getAppointmentsByPatientId(userId));
+    }
+
+    @GetMapping("/doctor/{doctorId}")
+    public ResponseEntity<List<AppointmentResponse>> getAppointmentsByDoctorId(@PathVariable Long doctorId) {
+        return ResponseEntity.ok(appointmentService.getAppointmentsByDoctorId(doctorId));
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<AppointmentResponse> updateAppointment(@PathVariable Long id,
             @RequestBody AppointmentRequest request) {
         return ResponseEntity.ok(appointmentService.updateAppointment(id, request));
+    }
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<AppointmentResponse> updateAppointmentStatus(@PathVariable Long id,
+            @RequestBody java.util.Map<String, String> request) {
+        return ResponseEntity.ok(appointmentService.updateAppointmentStatus(id, request.get("status")));
     }
 
     @DeleteMapping("/{id}")

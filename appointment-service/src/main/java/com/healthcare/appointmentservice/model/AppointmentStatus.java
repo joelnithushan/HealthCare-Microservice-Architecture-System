@@ -1,8 +1,9 @@
 package com.healthcare.appointmentservice.model;
 
 public enum AppointmentStatus {
-    BOOKED,
-    CONFIRMED,
+    PENDING,
+    ACCEPTED,
+    REJECTED,
     CANCELLED,
     COMPLETED
 }

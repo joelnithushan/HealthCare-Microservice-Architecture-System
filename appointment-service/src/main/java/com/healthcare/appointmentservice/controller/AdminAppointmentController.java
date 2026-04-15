@@ -12,7 +12,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/admin/appointments")
-@CrossOrigin(origins = "*")
 public class AdminAppointmentController {
 
     @Autowired
