@@ -11,6 +11,10 @@ public class PrescriptionResponse {
     private String medication;
     private String dosage;
     private String instructions;
+    private String frequency;
+    private String duration;
+    private String notes;
+    private String prescriptionPdfUrl;
     private LocalDateTime issuedDate;
 
     public PrescriptionResponse() {
@@ -91,4 +95,16 @@ public class PrescriptionResponse {
     public void setIssuedDate(LocalDateTime issuedDate) {
         this.issuedDate = issuedDate;
     }
+
+    public String getFrequency() { return frequency; }
+    public void setFrequency(String frequency) { this.frequency = frequency; }
+
+    public String getDuration() { return duration; }
+    public void setDuration(String duration) { this.duration = duration; }
+
+    public String getNotes() { return notes; }
+    public void setNotes(String notes) { this.notes = notes; }
+
+    public String getPrescriptionPdfUrl() { return prescriptionPdfUrl; }
+    public void setPrescriptionPdfUrl(String prescriptionPdfUrl) { this.prescriptionPdfUrl = prescriptionPdfUrl; }
 }

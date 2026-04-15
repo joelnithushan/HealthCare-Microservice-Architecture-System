@@ -14,6 +14,8 @@ public interface DoctorService {
 
     DoctorResponse getDoctorById(Long id);
 
+    DoctorResponse getDoctorByEmail(String email);
+
     DoctorResponse updateDoctor(Long id, DoctorRequest request);
 
     void deleteDoctor(Long id);
@@ -29,4 +31,6 @@ public interface DoctorService {
     List<DoctorResponse> getVerifiedDoctors();
 
     Map<String, Object> getDoctorStats();
+
+    DoctorResponse uploadProfilePic(Long id, org.springframework.web.multipart.MultipartFile file);
 }

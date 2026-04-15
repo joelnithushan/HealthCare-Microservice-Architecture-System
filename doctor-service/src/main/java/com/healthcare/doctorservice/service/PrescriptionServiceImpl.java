@@ -6,7 +6,9 @@ import com.healthcare.doctorservice.model.Prescription;
 import com.healthcare.doctorservice.repo.PrescriptionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -17,7 +19,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
     private PrescriptionRepository prescriptionRepository;
 
     @Override
-    public PrescriptionResponse createPrescription(Long doctorId, PrescriptionRequest request) {
+    public PrescriptionResponse createPrescription(Long doctorId, PrescriptionRequest request, MultipartFile file) {
         Prescription prescription = new Prescription();
         prescription.setDoctorId(doctorId);
         prescription.setPatientId(request.getPatientId());
@@ -25,8 +27,26 @@ public class PrescriptionServiceImpl implements PrescriptionService {
         prescription.setMedication(request.getMedication());
         prescription.setDosage(request.getDosage());
         prescription.setInstructions(request.getInstructions());
+        prescription.setFrequency(request.getFrequency());
+        prescription.setDuration(request.getDuration());
+        prescription.setNotes(request.getNotes());
+
+        if (file != null && !file.isEmpty()) {
+            try {
+                prescription.setPrescriptionDocumentData(file.getBytes());
+                prescription.setPrescriptionDocumentType(file.getContentType());
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to read prescription PDF data", e);
+            }
+        }
 
         Prescription saved = prescriptionRepository.save(prescription);
+        
+        if (file != null && !file.isEmpty() && saved.getId() != null) {
+            saved.setPrescriptionPdfUrl("/api/v1/doctors/prescriptions/" + saved.getId() + "/document");
+            saved = prescriptionRepository.save(saved);
+        }
+
         return mapToResponse(saved);
     }
 
@@ -62,6 +82,10 @@ public class PrescriptionServiceImpl implements PrescriptionService {
         response.setMedication(prescription.getMedication());
         response.setDosage(prescription.getDosage());
         response.setInstructions(prescription.getInstructions());
+        response.setFrequency(prescription.getFrequency());
+        response.setDuration(prescription.getDuration());
+        response.setNotes(prescription.getNotes());
+        response.setPrescriptionPdfUrl(prescription.getPrescriptionPdfUrl());
         response.setIssuedDate(prescription.getIssuedDate());
         return response;
     }

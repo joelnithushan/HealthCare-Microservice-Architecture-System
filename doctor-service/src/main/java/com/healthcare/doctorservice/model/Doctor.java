@@ -5,7 +5,10 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcType;
+import org.hibernate.type.descriptor.jdbc.BinaryJdbcType;
 
 import java.time.LocalDateTime;
 
@@ -32,6 +35,16 @@ public class Doctor {
     private boolean verified = false;
 
     private LocalDateTime verifiedAt;
+
+    @Column(name = "profile_pic_url")
+    private String profilePicUrl;
+
+    @JdbcType(BinaryJdbcType.class)
+    @Column(name = "profile_image_data")
+    private byte[] profileImageData;
+
+    @Column(name = "profile_image_content_type")
+    private String profileImageContentType;
 
     public Doctor() {
     }
@@ -108,4 +121,18 @@ public class Doctor {
     public void setVerifiedAt(LocalDateTime verifiedAt) {
         this.verifiedAt = verifiedAt;
     }
+
+    public String getProfilePicUrl() {
+        return profilePicUrl;
+    }
+
+    public void setProfilePicUrl(String profilePicUrl) {
+        this.profilePicUrl = profilePicUrl;
+    }
+
+    public byte[] getProfileImageData() { return profileImageData; }
+    public void setProfileImageData(byte[] profileImageData) { this.profileImageData = profileImageData; }
+
+    public String getProfileImageContentType() { return profileImageContentType; }
+    public void setProfileImageContentType(String profileImageContentType) { this.profileImageContentType = profileImageContentType; }
 }

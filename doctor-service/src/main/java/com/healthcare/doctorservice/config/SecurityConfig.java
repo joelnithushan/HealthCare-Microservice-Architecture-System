@@ -24,7 +24,9 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.OPTIONS, "/**")).permitAll()
                         .requestMatchers(HttpMethod.GET, "/doctors", "/doctors/**").permitAll()
+                        .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/doctors/*/profile-image")).permitAll()
                         .requestMatchers(new AntPathRequestMatcher("/error")).permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

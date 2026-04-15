@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface PrescriptionService {
 
-    PrescriptionResponse createPrescription(Long doctorId, PrescriptionRequest request);
+    PrescriptionResponse createPrescription(Long doctorId, PrescriptionRequest request, org.springframework.web.multipart.MultipartFile file);
 
     PrescriptionResponse getPrescriptionById(Long id);
 

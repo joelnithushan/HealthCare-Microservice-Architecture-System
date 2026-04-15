@@ -9,6 +9,7 @@ public class DoctorResponse {
     private String phone;
     private String availability;
     private boolean verified;
+    private String profilePicUrl;
 
     public DoctorResponse() {
     }
@@ -77,5 +78,13 @@ public class DoctorResponse {
 
     public void setVerified(boolean verified) {
         this.verified = verified;
+    }
+
+    public String getProfilePicUrl() {
+        return profilePicUrl;
+    }
+
+    public void setProfilePicUrl(String profilePicUrl) {
+        this.profilePicUrl = profilePicUrl;
     }
 }
