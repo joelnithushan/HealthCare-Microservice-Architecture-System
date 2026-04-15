@@ -15,14 +15,26 @@ spec:
       containers:
         - name: telemedicine-service
           image: telemedicine-service:latest
-          imagePullPolicy: Never
           ports:
             - containerPort: 8086
-          envFrom:
-            - configMapRef:
-                name: healthcare-config
-            - secretRef:
-                name: healthcare-secret
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres:5432/telemedicine_db
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: db-username
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: db-password
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: jwt-secret
 ---
 apiVersion: v1
 kind: Service
@@ -32,6 +44,6 @@ spec:
   selector:
     app: telemedicine-service
   ports:
-    - protocol: TCP
-      port: 8086
+    - port: 8086
       targetPort: 8086
+  type: ClusterIP

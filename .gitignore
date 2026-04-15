@@ -22,3 +22,25 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# Maven
+target/
+.apt_generated/
+.apt_generated_tests/
+run_log.txt
+
+# IDEs
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+
+# Local/Temp files
+.env
+startup_output.txt
+login_payload.json
+login_request.json
+compliance_report.md
+

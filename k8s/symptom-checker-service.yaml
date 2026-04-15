@@ -15,14 +15,14 @@ spec:
       containers:
         - name: symptom-checker-service
           image: symptom-checker-service:latest
-          imagePullPolicy: Never
           ports:
             - containerPort: 8087
-          envFrom:
-            - configMapRef:
-                name: healthcare-config
-            - secretRef:
-                name: healthcare-secret
+          env:
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: jwt-secret
 ---
 apiVersion: v1
 kind: Service
@@ -32,6 +32,6 @@ spec:
   selector:
     app: symptom-checker-service
   ports:
-    - protocol: TCP
-      port: 8087
+    - port: 8087
       targetPort: 8087
+  type: ClusterIP
