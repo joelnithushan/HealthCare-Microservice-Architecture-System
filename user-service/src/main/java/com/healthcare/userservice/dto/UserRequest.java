@@ -8,6 +8,15 @@ public class UserRequest {
     private String email;
     private Role role;
 
+    // Sri Lankan profile fields
+    private String mobileNumber;
+    private String nic;
+    private String gender;
+    private String dob;
+    private String slmcNumber;
+    private String specialization;
+    private String hospitalAttached;
+
     public UserRequest() {
     }
 
@@ -17,27 +26,33 @@ public class UserRequest {
         this.role = role;
     }
 
-    public String getName() {
-        return name;
-    }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
 
-    public void setName(String name) {
-        this.name = name;
-    }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-    public String getEmail() {
-        return email;
-    }
+    public Role getRole() { return role; }
+    public void setRole(Role role) { this.role = role; }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+    public String getMobileNumber() { return mobileNumber; }
+    public void setMobileNumber(String mobileNumber) { this.mobileNumber = mobileNumber; }
 
-    public Role getRole() {
-        return role;
-    }
+    public String getNic() { return nic; }
+    public void setNic(String nic) { this.nic = nic; }
 
-    public void setRole(Role role) {
-        this.role = role;
-    }
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
+
+    public String getDob() { return dob; }
+    public void setDob(String dob) { this.dob = dob; }
+
+    public String getSlmcNumber() { return slmcNumber; }
+    public void setSlmcNumber(String slmcNumber) { this.slmcNumber = slmcNumber; }
+
+    public String getSpecialization() { return specialization; }
+    public void setSpecialization(String specialization) { this.specialization = specialization; }
+
+    public String getHospitalAttached() { return hospitalAttached; }
+    public void setHospitalAttached(String hospitalAttached) { this.hospitalAttached = hospitalAttached; }
 }

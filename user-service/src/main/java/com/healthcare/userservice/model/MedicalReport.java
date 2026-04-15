@@ -8,6 +8,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcType;
+import org.hibernate.type.descriptor.jdbc.BinaryJdbcType;
 
 import java.time.LocalDateTime;
 
@@ -28,7 +30,7 @@ public class MedicalReport {
     @Column(nullable = false)
     private String fileType;
 
-    @Lob
+    @JdbcType(BinaryJdbcType.class)
     @Column(nullable = false)
     private byte[] fileData;
 

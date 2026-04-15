@@ -22,4 +22,15 @@ public interface UserService {
     UserResponse updateUser(Long id, UserRequest userRequest);
 
     void deleteUser(Long id);
+
+    void forgotPassword(String email);
+    void resetPassword(String token, String newPassword);
+
+    AuthResponse loginWithGoogle(String googleToken, String role);
+    UserResponse getCurrentUser();
+
+    UserResponse uploadProfilePic(Long id, org.springframework.web.multipart.MultipartFile file);
+
+    UserResponse suspendUser(Long id, String reason);
+    UserResponse unsuspendUser(Long id);
 }

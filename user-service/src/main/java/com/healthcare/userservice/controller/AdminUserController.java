@@ -13,7 +13,6 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/admin/users")
-@CrossOrigin(origins = "*")
 public class AdminUserController {
 
     @Autowired
@@ -48,5 +47,16 @@ public class AdminUserController {
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/suspend")
+    public ResponseEntity<UserResponse> suspendUser(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        String reason = body.getOrDefault("reason", "No reason provided");
+        return ResponseEntity.ok(userService.suspendUser(id, reason));
+    }
+
+    @PostMapping("/{id}/unsuspend")
+    public ResponseEntity<UserResponse> unsuspendUser(@PathVariable Long id) {
+        return ResponseEntity.ok(userService.unsuspendUser(id));
     }
 }
