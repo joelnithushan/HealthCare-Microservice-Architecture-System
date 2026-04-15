@@ -88,6 +88,19 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentResponse updatePaymentStatus(Long id, String status) {
         Payment payment = paymentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found with ID: " + id));
+        
+        // Logical Security Fix: Verify with Stripe if status is 'SUCCESS'
+        if ("SUCCESS".equals(status) && payment.getStripePaymentIntentId() != null) {
+            try {
+                PaymentIntent intent = PaymentIntent.retrieve(payment.getStripePaymentIntentId());
+                if (!"succeeded".equals(intent.getStatus())) {
+                    throw new RuntimeException("Stripe verification failed: Payment is not actually succeeded. Current Stripe status: " + intent.getStatus());
+                }
+            } catch (StripeException e) {
+                throw new RuntimeException("Failed to verify payment with Stripe: " + e.getMessage());
+            }
+        }
+
         payment.setStatus(PaymentStatus.valueOf(status));
         return mapToResponse(paymentRepository.save(payment), null);
     }
