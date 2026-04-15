@@ -1,0 +1,151 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+        # Auth Service
+        - id: auth-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=1
+
+        # User Service
+        - id: user-service-v1
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/v1/users/**
+          filters:
+            - StripPrefix=2
+        - id: user-service-direct
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - StripPrefix=1
+
+        # Doctor Service
+        - id: doctor-service-v1
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/v1/doctors/**
+          filters:
+            - StripPrefix=2
+        - id: doctor-service-direct
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/doctors/**
+          filters:
+            - StripPrefix=1
+
+        # Appointment Service
+        - id: appointment-service-v1
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/v1/appointments/**
+          filters:
+            - StripPrefix=2
+        - id: appointment-service-direct
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/appointments/**
+          filters:
+            - StripPrefix=1
+
+        # Notification Service
+        - id: notification-service-v1
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/v1/notifications/**
+          filters:
+            - StripPrefix=2
+        - id: notification-service-direct
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - StripPrefix=1
+
+        # Payment Service
+        - id: payment-service-v1
+          uri: http://localhost:8085
+          predicates:
+            - Path=/api/v1/payments/**
+          filters:
+            - StripPrefix=2
+        - id: payment-service-direct
+          uri: http://localhost:8085
+          predicates:
+            - Path=/api/payments/**
+          filters:
+            - StripPrefix=1
+
+        # Prescription Service
+        - id: prescription-service-direct
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/prescriptions/**
+          filters:
+            - StripPrefix=1
+
+        # Telemedicine Service
+        - id: telemedicine-service-v1
+          uri: http://localhost:8086
+          predicates:
+            - Path=/api/v1/telemedicine/**
+          filters:
+            - StripPrefix=2
+        - id: sessions-service-direct
+          uri: http://localhost:8086
+          predicates:
+            - Path=/api/sessions/**
+          filters:
+            - StripPrefix=1
+
+        # Symptom Checker Service
+        - id: symptom-checker-service-v1
+          uri: http://localhost:8087
+          predicates:
+            - Path=/api/v1/symptoms/**
+          filters:
+            - StripPrefix=2
+        - id: symptom-checker-service-direct
+          uri: http://localhost:8087
+          predicates:
+            - Path=/api/symptoms/**
+          filters:
+            - StripPrefix=1
+
+        # Admin Routes
+        - id: admin-user-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/admin/users/**
+          filters:
+            - StripPrefix=1
+        - id: admin-doctor-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/admin/doctors/**
+          filters:
+            - StripPrefix=1
+        - id: admin-appointment-service
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/admin/appointments/**
+          filters:
+            - StripPrefix=1
+        - id: admin-payment-service
+          uri: http://localhost:8085
+          predicates:
+            - Path=/api/admin/payments/**
+          filters:
+            - StripPrefix=1
+
+jwt:
+  secret: ${JWT_SECRET}
