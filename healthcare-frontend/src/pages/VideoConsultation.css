@@ -1,0 +1,24 @@
+/* VideoConsultation.css */
+
+.consult-room-wrapper {
+  background: #0f172a;
+}
+
+/* Hide scrollbars for the side panel form but allow scrolling */
+.consult-side-panel-content {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 #0f172a;
+}
+
+.consult-side-panel-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.consult-side-panel-content::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+.consult-side-panel-content::-webkit-scrollbar-thumb {
+  background-color: #334155;
+  border-radius: 10px;
+}

@@ -29,12 +29,12 @@ public class AdminPaymentController {
         stats.put("totalPayments", allPayments.size());
 
         double totalRevenue = allPayments.stream()
-                .filter(p -> "COMPLETED".equals(p.getStatus()))
+                .filter(p -> "SUCCESS".equals(p.getStatus()))
                 .mapToDouble(p -> p.getAmount() != null ? p.getAmount().doubleValue() : 0.0)
                 .sum();
         stats.put("totalRevenue", totalRevenue);
 
-        long completedCount = allPayments.stream().filter(p -> "COMPLETED".equals(p.getStatus())).count();
+        long completedCount = allPayments.stream().filter(p -> "SUCCESS".equals(p.getStatus())).count();
         long pendingCount = allPayments.stream().filter(p -> "PENDING".equals(p.getStatus())).count();
         long failedCount = allPayments.stream().filter(p -> "FAILED".equals(p.getStatus())).count();
 

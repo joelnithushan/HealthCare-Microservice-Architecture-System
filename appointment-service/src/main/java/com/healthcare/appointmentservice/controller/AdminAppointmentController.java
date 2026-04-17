@@ -28,7 +28,7 @@ public class AdminAppointmentController {
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalAppointments", allAppointments.size());
 
-        long scheduled = allAppointments.stream().filter(a -> "SCHEDULED".equals(a.getStatus())).count();
+        long scheduled = allAppointments.stream().filter(a -> "ACCEPTED".equals(a.getStatus()) || "PENDING".equals(a.getStatus())).count();
         long completed = allAppointments.stream().filter(a -> "COMPLETED".equals(a.getStatus())).count();
         long cancelled = allAppointments.stream().filter(a -> "CANCELLED".equals(a.getStatus())).count();
 

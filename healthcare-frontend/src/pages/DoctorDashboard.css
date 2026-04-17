@@ -1,0 +1,156 @@
+/* Doctor Dashboard Unique Styling Extension */
+
+/* Welcome Banner Pill */
+.banner-pill {
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(4px);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-family: var(--font-base);
+  font-weight: 500;
+  font-size: 13px;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  color: var(--text-muted);
+  font-family: var(--font-base);
+  font-weight: 500;
+  padding: 40px 0;
+  font-size: 15px;
+}
+
+/* Timeline List */
+.timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.timeline-row {
+  display: flex;
+  align-items: center;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.timeline-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.timeline-time {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--accent);
+  width: 80px;
+  font-size: 15px;
+}
+
+.timeline-content {
+  flex: 1;
+}
+
+.timeline-content h4 {
+  margin: 0 0 6px 0;
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: var(--navy);
+}
+
+.timeline-badges {
+  display: flex;
+  gap: 8px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-badge.accepted, .status-badge.completed { background: rgba(29, 158, 117, 0.1); color: var(--success); }
+.status-badge.pending { background: rgba(186, 117, 23, 0.1); color: var(--warning); }
+.status-badge.cancelled, .status-badge.rejected { background: rgba(226, 75, 74, 0.1); color: var(--danger); }
+
+/* Requests List */
+.requests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.request-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-main);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.req-info h4 {
+  margin: 0 0 4px 0;
+  font-family: var(--font-display);
+  font-size: 15px;
+  color: var(--navy);
+}
+
+.req-info span {
+  font-family: var(--font-base);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.req-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-accept {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-family: var(--font-base);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.btn-accept:hover { background: var(--accent-hover); transform: scale(0.97); }
+
+.btn-reject {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-family: var(--font-base);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-reject:hover { background: rgba(226, 75, 74, 0.05); }
+
+@media (max-width: 768px) {
+  .timeline-row { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .timeline-actions { width: 100%; display: flex; }
+  .timeline-actions button { flex: 1; justify-content: center; }
+  .request-row { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .req-actions { width: 100%; }
+  .req-actions button { flex: 1; justify-content: center; }
+}

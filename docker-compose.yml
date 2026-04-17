@@ -36,8 +36,8 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       SPRING_MAIL_HOST: smtp.gmail.com
       SPRING_MAIL_PORT: 587
-      SPRING_MAIL_USERNAME: ${EMAIL_USERNAME:-stylerfree29@gmail.com}
-      SPRING_MAIL_PASSWORD: ${EMAIL_PASSWORD:-jbdx wqow erez ynij}
+      SPRING_MAIL_USERNAME: ${EMAIL_USERNAME:-your-email@gmail.com}
+      SPRING_MAIL_PASSWORD: ${EMAIL_PASSWORD:-your-app-password}
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: "true"
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: "true"
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
@@ -97,8 +97,8 @@ services:
       TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-+1234567890}
       SPRING_MAIL_HOST: smtp.gmail.com
       SPRING_MAIL_PORT: 587
-      SPRING_MAIL_USERNAME: ${EMAIL_USERNAME:-stylerfree29@gmail.com}
-      SPRING_MAIL_PASSWORD: ${EMAIL_PASSWORD:-jbdx wqow erez ynij}
+      SPRING_MAIL_USERNAME: ${EMAIL_USERNAME:-your-email@gmail.com}
+      SPRING_MAIL_PASSWORD: ${EMAIL_PASSWORD:-your-app-password}
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: "true"
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: "true"
     depends_on:
