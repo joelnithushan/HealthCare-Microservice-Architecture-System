@@ -50,4 +50,9 @@ public class PaymentController {
         paymentService.handlePayHereNotification(payload);
         return ResponseEntity.ok().build();
     }
+
+    @GetMapping("/admin/stats")
+    public ResponseEntity<Map<String, Object>> getPaymentStats() {
+        return ResponseEntity.ok(paymentService.getPaymentStats());
+    }
 }

@@ -14,7 +14,8 @@ spec:
     spec:
       containers:
         - name: healthcare-frontend
-          image: healthcare-frontend:latest
+          image: healthcare-frontend:v1.0.2
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
 ---

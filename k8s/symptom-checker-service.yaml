@@ -15,14 +15,17 @@ spec:
       containers:
         - name: symptom-checker-service
           image: symptom-checker-service:latest
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8087
           env:
-            - name: JWT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: app-secrets
-                  key: jwt-secret
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres-service:5432/symptom_checker_db"
+          envFrom:
+            - configMapRef:
+                name: healthcare-config
+            - secretRef:
+                name: healthcare-secret
 ---
 apiVersion: v1
 kind: Service

@@ -1,129 +1,123 @@
 package com.healthcare.symptomcheckerservice.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.*;
+import com.healthcare.symptomcheckerservice.dto.SymptomCheckResponse;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 public class GeminiAiService {
 
-    private final WebClient webClient;
-    private final String apiKey;
-    private final String apiUrl;
-    private final ObjectMapper objectMapper;
+    @Value("${GEMINI_API_KEY:}")
+    private String apiKey;
 
-    public GeminiAiService(
-            @Value("${gemini.api.key}") String apiKey,
-            @Value("${gemini.api.url}") String apiUrl) {
-        this.apiKey = apiKey;
-        this.apiUrl = apiUrl;
-        this.webClient = WebClient.builder().build();
-        this.objectMapper = new ObjectMapper();
-    }
+    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 
-    public Map<String, String> analyzeSymptoms(String symptoms) {
-        String prompt = buildPrompt(symptoms);
+    private final RestTemplate restTemplate = new RestTemplate();
 
-        try {
-            // Build Gemini API request body
-            Map<String, Object> requestBody = new HashMap<>();
-            Map<String, Object> content = new HashMap<>();
-            Map<String, String> part = new HashMap<>();
-            part.put("text", prompt);
-            content.put("parts", List.of(part));
-            requestBody.put("contents", List.of(content));
-
-            String responseJson = webClient.post()
-                    .uri(apiUrl + "?key=" + apiKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(requestBody)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
-
-            return parseGeminiResponse(responseJson);
-
-        } catch (Exception e) {
-            System.err.println("Gemini API error: " + e.getMessage());
-            return getFallbackResponse(symptoms);
+    public SymptomCheckResponse analyzeSymptoms(List<String> symptoms) {
+        if (apiKey == null || apiKey.isEmpty() || apiKey.equals("your-gemini-api-key-placeholder")) {
+            return getMockAnalysis(symptoms);
         }
-    }
 
-    private String buildPrompt(String symptoms) {
-        return """
-                You are a healthcare AI assistant for a telemedicine platform.
-                A patient has reported the following symptoms: %s
-                
-                Please analyze these symptoms and provide your response in EXACTLY this JSON format (no markdown, no code blocks, just raw JSON):
-                {
-                    "suggestion": "A brief health suggestion and preliminary assessment (2-3 sentences)",
-                    "recommendedSpecialty": "The most appropriate doctor specialty to consult (e.g., General Physician, Cardiologist, Dermatologist, Neurologist, Orthopedic, ENT Specialist, Gastroenterologist, Pulmonologist, Psychiatrist, Ophthalmologist)",
-                    "severity": "LOW or MEDIUM or HIGH"
-                }
-                
-                Important guidelines:
-                - This is for preliminary guidance only, always recommend consulting a doctor
-                - Be concise but informative in your suggestion
-                - Choose severity based on: LOW (minor/manageable), MEDIUM (needs attention), HIGH (urgent/seek immediate care)
-                - Respond with ONLY the JSON object, no additional text
-                """.formatted(symptoms);
-    }
-
-    private Map<String, String> parseGeminiResponse(String responseJson) {
         try {
-            JsonNode root = objectMapper.readTree(responseJson);
-            JsonNode candidates = root.path("candidates");
+            String prompt = "Act as a preliminary medical symptom analyzer. "
+                          + "A patient reports these symptoms: " + String.join(", ", symptoms) + ". "
+                          + "Provide a JSON response with these keys: "
+                          + "'riskLevel' (High, Medium, or Low), "
+                          + "'recommendation' (Short medical advice), "
+                          + "'possibleConditions' (List of strings). "
+                          + "Ensure it is valid JSON and only return the JSON object.";
 
-            if (candidates.isArray() && candidates.size() > 0) {
-                String aiText = candidates.get(0)
-                        .path("content")
-                        .path("parts")
-                        .get(0)
-                        .path("text")
-                        .asText();
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
 
-                // Clean up the response - remove markdown code blocks if present
-                aiText = aiText.trim();
-                if (aiText.startsWith("```json")) {
-                    aiText = aiText.substring(7);
-                }
-                if (aiText.startsWith("```")) {
-                    aiText = aiText.substring(3);
-                }
-                if (aiText.endsWith("```")) {
-                    aiText = aiText.substring(0, aiText.length() - 3);
-                }
-                aiText = aiText.trim();
+            Map<String, Object> contents = new HashMap<>();
+            Map<String, Object> parts = new HashMap<>();
+            parts.put("text", prompt);
+            contents.put("parts", Collections.singletonList(parts));
 
-                JsonNode aiJson = objectMapper.readTree(aiText);
+            Map<String, Object> body = new HashMap<>();
+            body.put("contents", Collections.singletonList(contents));
 
-                Map<String, String> result = new HashMap<>();
-                result.put("suggestion", aiJson.path("suggestion").asText("Please consult a healthcare professional."));
-                result.put("recommendedSpecialty", aiJson.path("recommendedSpecialty").asText("General Physician"));
-                result.put("severity", aiJson.path("severity").asText("MEDIUM"));
-                return result;
+            String url = GEMINI_API_URL + "?key=" + apiKey;
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+            ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
+            
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                return parseGeminiResponse(response.getBody(), symptoms);
             }
         } catch (Exception e) {
-            System.err.println("Error parsing Gemini response: " + e.getMessage());
+            System.err.println("Gemini API call failed: " + e.getMessage());
         }
 
-        return getFallbackResponse("");
+        return getMockAnalysis(symptoms);
     }
 
-    private Map<String, String> getFallbackResponse(String symptoms) {
-        Map<String, String> fallback = new HashMap<>();
-        fallback.put("suggestion",
-                "Based on your symptoms, we recommend consulting a healthcare professional for a proper diagnosis. " +
-                "Please book an appointment with a doctor at your earliest convenience.");
-        fallback.put("recommendedSpecialty", "General Physician");
-        fallback.put("severity", "MEDIUM");
-        return fallback;
+    private SymptomCheckResponse parseGeminiResponse(Map responseBody, List<String> originalSymptoms) {
+        try {
+            List candidates = (List) responseBody.get("candidates");
+            Map candidate = (Map) candidates.get(0);
+            Map content = (Map) candidate.get("content");
+            List parts = (List) content.get("parts");
+            Map part = (Map) parts.get(0);
+            String text = (String) part.get("text");
+
+            if (text.contains("{")) {
+                text = text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1);
+            }
+
+            SymptomCheckResponse res = new SymptomCheckResponse();
+            res.setSeverity(text.contains("High") ? "High" : (text.contains("Medium") ? "Medium" : "Low"));
+            res.setAiSuggestion("AI-Generated advice: " + (text.length() > 200 ? text.substring(0, 200) + "..." : text));
+            res.setSymptoms(String.join(", ", originalSymptoms));
+            return res;
+
+        } catch (Exception e) {
+            return getMockAnalysis(originalSymptoms);
+        }
+    }
+
+    private SymptomCheckResponse getMockAnalysis(List<String> input) {
+        String risk = "Low";
+        String recommendation = "Your symptoms appear manageable. Ensure adequate rest and hydration.";
+        List<String> conditions = new ArrayList<>();
+
+        boolean matchesHigh = false;
+        boolean matchesMed = false;
+
+        for (String s : input) {
+            String sym = s.toLowerCase();
+            if (sym.contains("chest pain") || sym.contains("breath") || sym.contains("heart") || sym.contains("stroke")) {
+                matchesHigh = true;
+            } else if (sym.contains("fever") || sym.contains("cough") || sym.contains("pain") || sym.contains("dizzy")) {
+                matchesMed = true;
+            }
+        }
+
+        if (matchesHigh) {
+            risk = "High";
+            recommendation = "URGENT: Please seek immediate medical attention or visit the nearest emergency room.";
+            conditions.add("Potential Cardiac Issue");
+            conditions.add("Respiratory Distress");
+        } else if (matchesMed) {
+            risk = "Medium";
+            recommendation = "We recommend scheduling an appointment with a specialist soon to investigate these symptoms further.";
+            conditions.add("Common Cold / Flu");
+            conditions.add("Viral Infection");
+        } else {
+            conditions.add("Minor Fatigue");
+            conditions.add("General Malaise");
+        }
+
+        SymptomCheckResponse res = new SymptomCheckResponse();
+        res.setSeverity(risk);
+        res.setAiSuggestion(recommendation);
+        res.setSymptoms(String.join(", ", conditions));
+        return res;
     }
 }

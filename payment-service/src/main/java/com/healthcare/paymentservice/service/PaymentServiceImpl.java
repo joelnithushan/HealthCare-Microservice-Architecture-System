@@ -119,6 +119,33 @@ public class PaymentServiceImpl implements PaymentService {
         });
     }
 
+    @Override
+    public Map<String, Object> getPaymentStats() {
+        List<Payment> all = paymentRepository.findAll();
+        Map<String, Object> stats = new java.util.HashMap<>();
+        
+        long totalPayments = all.size();
+        java.math.BigDecimal totalRevenue = all.stream()
+                .filter(p -> p.getStatus() == PaymentStatus.SUCCESS)
+                .map(Payment::getAmount)
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        
+        long pendingPayments = all.stream()
+                .filter(p -> p.getStatus() == PaymentStatus.PENDING)
+                .count();
+                
+        long failedPayments = all.stream()
+                .filter(p -> p.getStatus() == PaymentStatus.FAILED)
+                .count();
+
+        stats.put("totalPayments", totalPayments);
+        stats.put("totalRevenue", totalRevenue);
+        stats.put("pendingPayments", pendingPayments);
+        stats.put("failedPayments", failedPayments);
+        
+        return stats;
+    }
+
     private PaymentResponse mapToResponse(Payment payment, String clientSecret) {
         PaymentResponse response = new PaymentResponse();
         response.setPaymentId(payment.getId());

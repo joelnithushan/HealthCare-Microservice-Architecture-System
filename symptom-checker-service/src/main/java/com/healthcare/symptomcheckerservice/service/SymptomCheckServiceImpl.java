@@ -24,15 +24,17 @@ public class SymptomCheckServiceImpl implements SymptomCheckService {
     @Override
     public SymptomCheckResponse checkSymptoms(SymptomCheckRequest request) {
         // Call Gemini AI to analyze symptoms
-        Map<String, String> aiResult = geminiAiService.analyzeSymptoms(request.getSymptoms());
+        // Converting String to List<String> for the analyzeSymptoms method
+        List<String> symptomsList = java.util.Arrays.asList(request.getSymptoms().split(","));
+        SymptomCheckResponse aiResult = geminiAiService.analyzeSymptoms(symptomsList);
 
         // Save the result to database
         SymptomCheck check = new SymptomCheck();
         check.setUserId(request.getUserId());
-        check.setSymptoms(request.getSymptoms());
-        check.setAiResponse(aiResult.get("suggestion"));
-        check.setRecommendedSpecialty(aiResult.get("recommendedSpecialty"));
-        check.setSeverity(aiResult.get("severity"));
+        check.setSymptoms(request.getSymptoms().toString()); // Assuming symptoms is stored as a string or list
+        check.setAiResponse(aiResult.getAiSuggestion());
+        check.setRecommendedSpecialty(aiResult.getRecommendedSpecialty());
+        check.setSeverity(aiResult.getSeverity());
 
         SymptomCheck saved = symptomCheckRepository.save(check);
         return mapToResponse(saved);

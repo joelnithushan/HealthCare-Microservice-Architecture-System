@@ -23,8 +23,8 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Override
     public AppointmentResponse createAppointment(AppointmentRequest request) {
         // 1. Validate Date and Time (Prevent past bookings)
-        LocalDate apptDate = LocalDate.parse(request.getAppointmentDate());
-        LocalTime apptTime = LocalTime.parse(request.getAppointmentTime());
+        LocalDate apptDate = request.getAppointmentDate();
+        LocalTime apptTime = request.getAppointmentTime();
         
         if (apptDate.isBefore(LocalDate.now())) {
             throw new RuntimeException("Cannot book appointments in the past.");
@@ -86,7 +86,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         // Validate new date/time
         if (request.getAppointmentDate() != null) {
-            LocalDate newDate = LocalDate.parse(request.getAppointmentDate().toString());
+            LocalDate newDate = request.getAppointmentDate();
             if (newDate.isBefore(LocalDate.now())) {
                 throw new RuntimeException("Cannot reschedule to a past date.");
             }

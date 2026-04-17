@@ -27,6 +27,8 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             "/api/auth/register",
             "/api/auth/login",
             "/api/auth/google",
+            "/api/auth/send-otp",
+            "/api/auth/verify-otp",
             "/api/auth/forgot-password",
             "/api/auth/reset-password",
             "/api/v1/symptoms");

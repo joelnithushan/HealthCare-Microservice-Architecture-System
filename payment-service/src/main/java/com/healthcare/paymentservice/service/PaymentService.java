@@ -18,4 +18,6 @@ public interface PaymentService {
     PaymentResponse updatePaymentStatus(Long id, String status);
 
     void handlePayHereNotification(java.util.Map<String, String> payload);
+
+    java.util.Map<String, Object> getPaymentStats();
 }
