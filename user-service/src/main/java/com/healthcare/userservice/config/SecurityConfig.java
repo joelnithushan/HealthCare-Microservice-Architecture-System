@@ -55,6 +55,8 @@ public class SecurityConfig {
                         .requestMatchers(new AntPathRequestMatcher("/auth/login")).permitAll()
                         .requestMatchers(new AntPathRequestMatcher("/auth/register")).permitAll()
                         .requestMatchers(new AntPathRequestMatcher("/auth/google")).permitAll()
+                        .requestMatchers(new AntPathRequestMatcher("/auth/send-otp")).permitAll()
+                        .requestMatchers(new AntPathRequestMatcher("/auth/verify-otp")).permitAll()
                         .requestMatchers(new AntPathRequestMatcher("/auth/forgot-password")).permitAll()
                         .requestMatchers(new AntPathRequestMatcher("/auth/reset-password")).permitAll()
                         .requestMatchers(new AntPathRequestMatcher("/auth/me")).authenticated()
@@ -62,7 +64,7 @@ public class SecurityConfig {
                         .requestMatchers(new AntPathRequestMatcher("/error")).permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .cors(Customizer.withDefaults())
+//                .cors(Customizer.withDefaults())
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(exception -> exception

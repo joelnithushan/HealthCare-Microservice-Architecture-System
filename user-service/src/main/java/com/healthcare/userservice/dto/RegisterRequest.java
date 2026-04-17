@@ -13,6 +13,7 @@ public class RegisterRequest {
     private String nic;
     private String gender;
     private String dob;
+    private String district;
     
     // Doctor specific fields
     private String slmcNumber;
@@ -72,6 +73,9 @@ public class RegisterRequest {
 
     public String getDob() { return dob; }
     public void setDob(String dob) { this.dob = dob; }
+
+    public String getDistrict() { return district; }
+    public void setDistrict(String district) { this.district = district; }
 
     public String getSlmcNumber() { return slmcNumber; }
     public void setSlmcNumber(String slmcNumber) { this.slmcNumber = slmcNumber; }

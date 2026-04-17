@@ -59,16 +59,19 @@ public class UserServiceImpl implements UserService {
     @Autowired(required = false)
     private JavaMailSender mailSender;
 
+    @Autowired
+    private EmailService emailService;
+
 
 
     @Value("${google.client.id}")
     private String googleClientId;
 
     @EventListener(ApplicationReadyEvent.class)
-    @Transactional
     public void seedData() {
-        seedAdminUser();
-        seedDoctors();
+        try { seedAdminUser(); } catch (Exception e) { System.out.println("Admin seed skipped: " + e.getMessage()); }
+        try { seedDoctors(); } catch (Exception e) { System.out.println("Doctor seed skipped: " + e.getMessage()); }
+        try { seedPatient(); } catch (Exception e) { System.out.println("Patient seed skipped: " + e.getMessage()); }
     }
 
 
@@ -82,6 +85,8 @@ public class UserServiceImpl implements UserService {
             admin.setPassword(passwordEncoder.encode("Admin@123"));
             admin.setRole(Role.ADMIN);
             admin.setSuspended(false);
+            admin.setApproved(true);
+            admin.setApprovedAt(java.time.LocalDateTime.now());
             userRepository.save(admin);
             System.out.println("Permanent Master Admin Account seeded successfully.");
         } else {
@@ -123,12 +128,39 @@ public class UserServiceImpl implements UserService {
                     doc.setPassword(passwordEncoder.encode("Doctor@123"));
                     doc.setRole(Role.DOCTOR);
                     doc.setSlmcNumber("SLMC/" + (int)(Math.random() * 90000 + 10000));
+                    doc.setApproved(true);
+                    doc.setApprovedAt(java.time.LocalDateTime.now());
                     userRepository.save(doc);
                     System.out.println("Seeded Doctor: " + data[0]);
                 }
             } catch (Exception e) {
                 System.out.println("Detailed seeding error for " + data[0] + ": " + e.getMessage());
             }
+        }
+    }
+
+    private void seedPatient() {
+        try {
+            Optional<User> patientOpt = userRepository.findByEmail("patient@gmail.com");
+            Optional<User> patientNicOpt = userRepository.findByNic("961234567V");
+            
+            if (patientOpt.isEmpty() && patientNicOpt.isEmpty()) {
+                User patient = new User();
+                patient.setName("Test Patient");
+                patient.setEmail("patient@gmail.com");
+                patient.setPassword(passwordEncoder.encode("Patient@123"));
+                patient.setRole(Role.PATIENT);
+                patient.setNic("961234567V");
+                patient.setMobileNumber("0779999999");
+                patient.setGender("Male");
+                patient.setDob("1990-01-01");
+                userRepository.save(patient);
+                System.out.println("Test Patient seeded successfully.");
+            } else {
+                System.out.println("DEBUG: Test Patient already exists (Email or NIC). Skipping seeding.");
+            }
+        } catch (Exception e) {
+            System.out.println("WARNING: Failed to seed Test Patient: " + e.getMessage());
         }
     }
 
@@ -157,6 +189,7 @@ public class UserServiceImpl implements UserService {
         user.setNic(request.getNic());
         user.setGender(request.getGender());
         user.setDob(request.getDob());
+        user.setDistrict(request.getDistrict());
         user.setSlmcNumber(request.getSlmcNumber());
         user.setSpecialization(request.getSpecialization());
         user.setHospitalAttached(request.getHospitalAttached());
@@ -190,6 +223,10 @@ public class UserServiceImpl implements UserService {
 
         if (Boolean.TRUE.equals(user.getSuspended())) {
             throw new RuntimeException("Your account has been suspended. Reason: " + user.getSuspensionReason());
+        }
+
+        if (user.getRole() == Role.DOCTOR && !Boolean.TRUE.equals(user.getApproved())) {
+            throw new RuntimeException("Your account is pending administrator approval. Please try again later.");
         }
 
         String token = jwtUtil.generateToken(
@@ -258,6 +295,7 @@ public class UserServiceImpl implements UserService {
         }
         if (userRequest.getGender() != null) existingUser.setGender(userRequest.getGender());
         if (userRequest.getDob() != null) existingUser.setDob(userRequest.getDob());
+        if (userRequest.getDistrict() != null) existingUser.setDistrict(userRequest.getDistrict());
         if (userRequest.getSlmcNumber() != null) existingUser.setSlmcNumber(userRequest.getSlmcNumber());
         if (userRequest.getSpecialization() != null) existingUser.setSpecialization(userRequest.getSpecialization());
         if (userRequest.getHospitalAttached() != null) existingUser.setHospitalAttached(userRequest.getHospitalAttached());
@@ -301,19 +339,9 @@ public class UserServiceImpl implements UserService {
         user.setResetTokenExpiry(Instant.now().plusSeconds(3600).toEpochMilli());
         userRepository.save(user);
 
-        // Send email via SMTP
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(user.getEmail());
-        message.setSubject("Medi Connect - Password Reset Request");
-        message.setText("To reset your password, please click the link below:\n" +
-                "http://localhost:3000/reset-password?token=" + token + "\n\n" +
-                "This link will expire in 1 hour.");
-
-        if (mailSender != null) {
-            mailSender.send(message);
-        } else {
-            System.out.println("SMTP not configured. Password reset link: http://localhost:3000/reset-password?token=" + token);
-        }
+        // Send themed HTML password reset email
+        String resetLink = "http://localhost:3000/reset-password?token=" + token;
+        emailService.sendPasswordResetEmail(user.getEmail(), resetLink);
     }
 
     @Override
@@ -435,6 +463,7 @@ public class UserServiceImpl implements UserService {
         response.setNic(user.getNic());
         response.setGender(user.getGender());
         response.setDob(user.getDob());
+        response.setDistrict(user.getDistrict());
         response.setSlmcNumber(user.getSlmcNumber());
         response.setSpecialization(user.getSpecialization());
         response.setHospitalAttached(user.getHospitalAttached());
@@ -446,6 +475,7 @@ public class UserServiceImpl implements UserService {
         response.setAge(user.getAge());
         response.setSuspended(Boolean.TRUE.equals(user.getSuspended()));
         response.setSuspensionReason(user.getSuspensionReason());
+        response.setApproved(Boolean.TRUE.equals(user.getApproved()));
 
         // Compute profile completeness based on role
         boolean complete = isNotEmpty(user.getNic()) && isNotEmpty(user.getMobileNumber());
@@ -467,6 +497,15 @@ public class UserServiceImpl implements UserService {
     public UserResponse suspendUser(Long id, String reason) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + id));
+        
+        // Last Admin Protection: prevent suspending the last admin
+        if (user.getRole() == Role.ADMIN) {
+            long adminCount = userRepository.countByRole(Role.ADMIN);
+            if (adminCount <= 1) {
+                throw new RuntimeException("Cannot suspend the last administrator account.");
+            }
+        }
+
         user.setSuspended(true);
         user.setSuspensionReason(reason);
         User savedUser = userRepository.save(user);
@@ -480,6 +519,36 @@ public class UserServiceImpl implements UserService {
         user.setSuspended(false);
         user.setSuspensionReason(null);
         User savedUser = userRepository.save(user);
+        return mapToResponse(savedUser);
+    }
+
+    @Override
+    public UserResponse approveUser(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + id));
+        user.setApproved(true);
+        user.setApprovedAt(java.time.LocalDateTime.now());
+        User savedUser = userRepository.save(user);
+        
+        // Notify the doctor via themed email
+        try {
+            emailService.sendApprovalEmail(user.getEmail(), user.getName());
+        } catch (Exception e) {
+            System.err.println("Non-critical error: Failed to send approval email to " + user.getEmail());
+        }
+
+        System.out.println("User " + user.getEmail() + " approved by admin.");
+        return mapToResponse(savedUser);
+    }
+
+    @Override
+    public UserResponse rejectUser(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + id));
+        user.setApproved(false);
+        user.setApprovedAt(null);
+        User savedUser = userRepository.save(user);
+        System.out.println("User " + user.getEmail() + " access rejected/reset by admin.");
         return mapToResponse(savedUser);
     }
 

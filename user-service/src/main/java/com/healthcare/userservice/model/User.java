@@ -78,23 +78,38 @@ public class User {
     @Column(name = "age")
     private Integer age;
 
+    @Column(name = "district")
+    private String district;
+
     @Column(name = "suspended")
     private Boolean suspended = false;
 
     @Column(name = "suspension_reason")
     private String suspensionReason;
 
+    @Column(name = "approved")
+    private Boolean approved = false;
+
+    @Column(name = "approved_at")
+    private java.time.LocalDateTime approvedAt;
+
     @PrePersist
     @PreUpdate
-    public void calculateAge() {
+    public void prePersist() {
+        // Calculate age
         if (this.dob != null && !this.dob.isEmpty()) {
             try {
                 LocalDate birthDate = LocalDate.parse(this.dob, DateTimeFormatter.ISO_LOCAL_DATE);
                 this.age = Period.between(birthDate, LocalDate.now()).getYears();
             } catch (DateTimeParseException e) {
-                // Invalid DOB format, set age to null or leave as is
                 this.age = null;
             }
+        }
+        
+        // Auto-approve non-doctors
+        if (this.role != null && (this.role == Role.ADMIN || this.role == Role.PATIENT)) {
+            this.approved = true;
+            this.approvedAt = java.time.LocalDateTime.now();
         }
     }
 
@@ -198,9 +213,18 @@ public class User {
     public Integer getAge() { return age; }
     public void setAge(Integer age) { this.age = age; }
 
+    public String getDistrict() { return district; }
+    public void setDistrict(String district) { this.district = district; }
+
     public Boolean getSuspended() { return suspended; }
     public void setSuspended(Boolean suspended) { this.suspended = suspended; }
 
     public String getSuspensionReason() { return suspensionReason; }
     public void setSuspensionReason(String suspensionReason) { this.suspensionReason = suspensionReason; }
+
+    public Boolean getApproved() { return approved; }
+    public void setApproved(Boolean approved) { this.approved = approved; }
+
+    public java.time.LocalDateTime getApprovedAt() { return approvedAt; }
+    public void setApprovedAt(java.time.LocalDateTime approvedAt) { this.approvedAt = approvedAt; }
 }

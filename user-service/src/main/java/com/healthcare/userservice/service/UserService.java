@@ -33,4 +33,6 @@ public interface UserService {
 
     UserResponse suspendUser(Long id, String reason);
     UserResponse unsuspendUser(Long id);
+    UserResponse approveUser(Long id);
+    UserResponse rejectUser(Long id);
 }

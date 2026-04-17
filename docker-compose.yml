@@ -5,6 +5,7 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: healthcare-postgres
+    restart: unless-stopped
     ports:
       - "5432:5432"
     environment:
@@ -16,10 +17,16 @@ services:
       - ./init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh
     networks:
       - healthcare-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   user-service:
     build: ./user-service
     container_name: user-service
+    restart: unless-stopped
     ports:
       - "8081:8081"
     environment:
@@ -29,19 +36,21 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       SPRING_MAIL_HOST: smtp.gmail.com
       SPRING_MAIL_PORT: 587
-      SPRING_MAIL_USERNAME: stylerfree29@gmail.com
-      SPRING_MAIL_PASSWORD: jbdx wqow erez ynij
+      SPRING_MAIL_USERNAME: ${EMAIL_USERNAME:-stylerfree29@gmail.com}
+      SPRING_MAIL_PASSWORD: ${EMAIL_PASSWORD:-jbdx wqow erez ynij}
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: "true"
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: "true"
-      GOOGLE_CLIENT_ID: 97532193168-o1kt921m7a8gpgu3b5uk7db3v3r8eubo.apps.googleusercontent.com
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - healthcare-net
 
   doctor-service:
     build: ./doctor-service
     container_name: doctor-service
+    restart: unless-stopped
     ports:
       - "8082:8082"
     environment:
@@ -50,13 +59,15 @@ services:
       SPRING_DATASOURCE_PASSWORD: 12345
       JWT_SECRET: ${JWT_SECRET}
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - healthcare-net
 
   appointment-service:
     build: ./appointment-service
     container_name: appointment-service
+    restart: unless-stopped
     ports:
       - "8083:8083"
     environment:
@@ -65,13 +76,15 @@ services:
       SPRING_DATASOURCE_PASSWORD: 12345
       JWT_SECRET: ${JWT_SECRET}
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - healthcare-net
 
   notification-service:
     build: ./notification-service
     container_name: notification-service
+    restart: unless-stopped
     ports:
       - "8084:8084"
     environment:
@@ -79,14 +92,25 @@ services:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: 12345
       JWT_SECRET: ${JWT_SECRET}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-AC_placeholder}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-auth_placeholder}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-+1234567890}
+      SPRING_MAIL_HOST: smtp.gmail.com
+      SPRING_MAIL_PORT: 587
+      SPRING_MAIL_USERNAME: ${EMAIL_USERNAME:-stylerfree29@gmail.com}
+      SPRING_MAIL_PASSWORD: ${EMAIL_PASSWORD:-jbdx wqow erez ynij}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: "true"
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: "true"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - healthcare-net
 
   payment-service:
     build: ./payment-service
     container_name: payment-service
+    restart: unless-stopped
     ports:
       - "8085:8085"
     environment:
@@ -94,45 +118,53 @@ services:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: 12345
       JWT_SECRET: ${JWT_SECRET}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_placeholder}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-pk_test_placeholder}
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - healthcare-net
 
-#  telemedicine-service:
-#    build: ./telemedicine-service
-#    container_name: telemedicine-service
-#    ports:
-#      - "8086:8086"
-#    environment:
-#      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/telemedicine_db
-#      SPRING_DATASOURCE_USERNAME: postgres
-#      SPRING_DATASOURCE_PASSWORD: 12345
-#      JWT_SECRET: ${JWT_SECRET}
-#    depends_on:
-#      - postgres
-#    networks:
-#      - healthcare-net
+  telemedicine-service:
+    build: ./telemedicine-service
+    container_name: telemedicine-service
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/telemedicine_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: 12345
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - healthcare-net
 
-#  symptom-checker-service:
-#    build: ./symptom-checker-service
-#    container_name: symptom-checker-service
-#    ports:
-#      - "8087:8087"
-#    environment:
-#      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/symptom_checker_db
-#      SPRING_DATASOURCE_USERNAME: postgres
-#      SPRING_DATASOURCE_PASSWORD: 12345
-#      JWT_SECRET: ${JWT_SECRET}
-#      GEMINI_API_KEY: ${GEMINI_API_KEY}
-#    depends_on:
-#      - postgres
-#    networks:
-#      - healthcare-net
+  symptom-checker-service:
+    build: ./symptom-checker-service
+    container_name: symptom-checker-service
+    restart: unless-stopped
+    ports:
+      - "8087:8087"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/symptom_checker_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: 12345
+      JWT_SECRET: ${JWT_SECRET}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - healthcare-net
 
   api-gateway:
     build: ./api-gateway
     container_name: api-gateway
+    restart: unless-stopped
     ports:
       - "8080:8080"
     environment:
@@ -143,14 +175,24 @@ services:
       - appointment-service
       - notification-service
       - payment-service
-      #- telemedicine-service
-      #- symptom-checker-service
+      - telemedicine-service
+      - symptom-checker-service
+    networks:
+      - healthcare-net
+
+  healthcare-frontend:
+    build: ./healthcare-frontend
+    container_name: healthcare-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
     networks:
       - healthcare-net
 
 volumes:
   postgres-data:
-
 
 networks:
   healthcare-net:

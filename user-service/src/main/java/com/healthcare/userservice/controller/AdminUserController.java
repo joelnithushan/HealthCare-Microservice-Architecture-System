@@ -59,4 +59,14 @@ public class AdminUserController {
     public ResponseEntity<UserResponse> unsuspendUser(@PathVariable Long id) {
         return ResponseEntity.ok(userService.unsuspendUser(id));
     }
+
+    @PutMapping("/{id}/approve")
+    public ResponseEntity<UserResponse> approveUser(@PathVariable Long id) {
+        return ResponseEntity.ok(userService.approveUser(id));
+    }
+
+    @PutMapping("/{id}/reject")
+    public ResponseEntity<UserResponse> rejectUser(@PathVariable Long id) {
+        return ResponseEntity.ok(userService.rejectUser(id));
+    }
 }

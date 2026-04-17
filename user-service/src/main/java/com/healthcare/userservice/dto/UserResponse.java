@@ -18,12 +18,14 @@ public class UserResponse {
     private String specialization;
     private String hospitalAttached;
     private String profilePicUrl;
+    private String district;
 
     // Computed flag: true if ALL required fields for the role are filled
     private boolean profileComplete;
     private Integer age;
     private Boolean suspended;
     private String suspensionReason;
+    private Boolean approved;
 
     public UserResponse() {
     }
@@ -74,6 +76,9 @@ public class UserResponse {
     public String getProfilePicUrl() { return profilePicUrl; }
     public void setProfilePicUrl(String profilePicUrl) { this.profilePicUrl = profilePicUrl; }
 
+    public String getDistrict() { return district; }
+    public void setDistrict(String district) { this.district = district; }
+
     public Integer getAge() { return age; }
     public void setAge(Integer age) { this.age = age; }
 
@@ -82,4 +87,7 @@ public class UserResponse {
 
     public String getSuspensionReason() { return suspensionReason; }
     public void setSuspensionReason(String suspensionReason) { this.suspensionReason = suspensionReason; }
+
+    public Boolean getApproved() { return approved; }
+    public void setApproved(Boolean approved) { this.approved = approved; }
 }
