@@ -1,7 +1,6 @@
-version: '3.8'
+version: "3.8"
 
 services:
-
   postgres:
     image: postgres:16-alpine
     container_name: healthcare-postgres
@@ -169,6 +168,13 @@ services:
       - "8080:8080"
     environment:
       JWT_SECRET: ${JWT_SECRET}
+      USER_SERVICE_HOST: user-service
+      DOCTOR_SERVICE_HOST: doctor-service
+      APPOINTMENT_SERVICE_HOST: appointment-service
+      NOTIFICATION_SERVICE_HOST: notification-service
+      PAYMENT_SERVICE_HOST: payment-service
+      TELEMEDICINE_SERVICE_HOST: telemedicine-service
+      SYMPTOM_CHECKER_SERVICE_HOST: symptom-checker-service
     depends_on:
       - user-service
       - doctor-service
