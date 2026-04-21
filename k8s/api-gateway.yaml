@@ -18,6 +18,21 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
+          env:
+            - name: USER_SERVICE_HOST
+              value: "user-service"
+            - name: DOCTOR_SERVICE_HOST
+              value: "doctor-service"
+            - name: APPOINTMENT_SERVICE_HOST
+              value: "appointment-service"
+            - name: NOTIFICATION_SERVICE_HOST
+              value: "notification-service"
+            - name: PAYMENT_SERVICE_HOST
+              value: "payment-service"
+            - name: TELEMEDICINE_SERVICE_HOST
+              value: "telemedicine-service"
+            - name: SYMPTOM_CHECKER_SERVICE_HOST
+              value: "symptom-checker-service"
           envFrom:
             - configMapRef:
                 name: healthcare-config
