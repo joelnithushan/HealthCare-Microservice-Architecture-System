@@ -32,6 +32,9 @@ public class Appointment {
     @Column(nullable = false)
     private LocalTime appointmentTime;
 
+    @Column(nullable = false)
+    private String appointmentType;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AppointmentStatus status;
@@ -42,12 +45,13 @@ public class Appointment {
     }
 
     public Appointment(Long id, Long patientId, Long doctorId, LocalDate appointmentDate,
-            LocalTime appointmentTime, AppointmentStatus status, String notes) {
+            LocalTime appointmentTime, String appointmentType, AppointmentStatus status, String notes) {
         this.id = id;
         this.patientId = patientId;
         this.doctorId = doctorId;
         this.appointmentDate = appointmentDate;
         this.appointmentTime = appointmentTime;
+        this.appointmentType = appointmentType;
         this.status = status;
         this.notes = notes;
     }
@@ -90,6 +94,14 @@ public class Appointment {
 
     public void setAppointmentTime(LocalTime appointmentTime) {
         this.appointmentTime = appointmentTime;
+    }
+
+    public String getAppointmentType() {
+        return appointmentType;
+    }
+
+    public void setAppointmentType(String appointmentType) {
+        this.appointmentType = appointmentType;
     }
 
     public AppointmentStatus getStatus() {

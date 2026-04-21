@@ -9,6 +9,7 @@ public class AppointmentRequest {
     private Long doctorId;
     private LocalDate appointmentDate;
     private LocalTime appointmentTime;
+    private String appointmentType;
     private String status;
     private String notes;
 
@@ -16,11 +17,12 @@ public class AppointmentRequest {
     }
 
     public AppointmentRequest(Long patientId, Long doctorId, LocalDate appointmentDate,
-            LocalTime appointmentTime, String status, String notes) {
+            LocalTime appointmentTime, String appointmentType, String status, String notes) {
         this.patientId = patientId;
         this.doctorId = doctorId;
         this.appointmentDate = appointmentDate;
         this.appointmentTime = appointmentTime;
+        this.appointmentType = appointmentType;
         this.status = status;
         this.notes = notes;
     }
@@ -55,6 +57,14 @@ public class AppointmentRequest {
 
     public void setAppointmentTime(LocalTime appointmentTime) {
         this.appointmentTime = appointmentTime;
+    }
+
+    public String getAppointmentType() {
+        return appointmentType;
+    }
+
+    public void setAppointmentType(String appointmentType) {
+        this.appointmentType = appointmentType;
     }
 
     public String getStatus() {

@@ -17,6 +17,10 @@ public interface AppointmentService {
 
     AppointmentResponse updateAppointmentStatus(Long id, String status);
 
+    AppointmentResponse acceptAppointment(Long id);
+
+    AppointmentResponse rejectAppointment(Long id);
+
     List<AppointmentResponse> getAppointmentsByPatientId(Long patientId);
 
     List<AppointmentResponse> getAppointmentsByDoctorId(Long doctorId);

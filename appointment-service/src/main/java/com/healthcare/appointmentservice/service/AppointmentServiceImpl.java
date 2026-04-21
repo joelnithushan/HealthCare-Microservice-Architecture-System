@@ -20,6 +20,9 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Autowired
     private AppointmentRepository appointmentRepository;
 
+    @Autowired
+    private NotificationIntegrationService notificationIntegrationService;
+
     @Override
     public AppointmentResponse createAppointment(AppointmentRequest request) {
         // 1. Validate Date and Time (Prevent past bookings)
@@ -46,10 +49,12 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setDoctorId(request.getDoctorId());
         appointment.setAppointmentDate(request.getAppointmentDate());
         appointment.setAppointmentTime(request.getAppointmentTime());
+        appointment.setAppointmentType(resolveAppointmentType(request.getAppointmentType()));
         appointment.setStatus(AppointmentStatus.valueOf(request.getStatus()));
         appointment.setNotes(request.getNotes());
 
         Appointment saved = appointmentRepository.save(appointment);
+        notificationIntegrationService.notifyAppointmentCreated(saved);
         return mapToResponse(saved);
     }
 
@@ -95,6 +100,9 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (request.getAppointmentTime() != null) {
             appointment.setAppointmentTime(request.getAppointmentTime());
         }
+        if (request.getAppointmentType() != null && !request.getAppointmentType().isBlank()) {
+            appointment.setAppointmentType(resolveAppointmentType(request.getAppointmentType()));
+        }
         if (request.getNotes() != null) {
             appointment.setNotes(request.getNotes());
         }
@@ -121,6 +129,39 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         appointment.setStatus(newStatus);
         Appointment updated = appointmentRepository.save(appointment);
+        notificationIntegrationService.notifyStatusChanged(updated, currentStatus);
+        return mapToResponse(updated);
+    }
+
+    @Override
+    public AppointmentResponse acceptAppointment(Long id) {
+        Appointment appointment = appointmentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Appointment not found with ID: " + id));
+
+        if (appointment.getStatus() != AppointmentStatus.PENDING) {
+            throw new RuntimeException("Only pending appointments can be accepted.");
+        }
+
+        AppointmentStatus previousStatus = appointment.getStatus();
+        appointment.setStatus(AppointmentStatus.ACCEPTED);
+        Appointment updated = appointmentRepository.save(appointment);
+        notificationIntegrationService.notifyStatusChanged(updated, previousStatus);
+        return mapToResponse(updated);
+    }
+
+    @Override
+    public AppointmentResponse rejectAppointment(Long id) {
+        Appointment appointment = appointmentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Appointment not found with ID: " + id));
+
+        if (appointment.getStatus() != AppointmentStatus.PENDING) {
+            throw new RuntimeException("Only pending appointments can be rejected.");
+        }
+
+        AppointmentStatus previousStatus = appointment.getStatus();
+        appointment.setStatus(AppointmentStatus.REJECTED);
+        Appointment updated = appointmentRepository.save(appointment);
+        notificationIntegrationService.notifyStatusChanged(updated, previousStatus);
         return mapToResponse(updated);
     }
 
@@ -145,7 +186,8 @@ public class AppointmentServiceImpl implements AppointmentService {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Appointment not found with ID: " + id));
         appointment.setStatus(AppointmentStatus.CANCELLED);
-        appointmentRepository.save(appointment);
+        Appointment updated = appointmentRepository.save(appointment);
+        notificationIntegrationService.notifyAppointmentCancelled(updated);
     }
 
     private AppointmentResponse mapToResponse(Appointment appointment) {
@@ -155,8 +197,16 @@ public class AppointmentServiceImpl implements AppointmentService {
         response.setDoctorId(appointment.getDoctorId());
         response.setAppointmentDate(appointment.getAppointmentDate());
         response.setAppointmentTime(appointment.getAppointmentTime());
+        response.setAppointmentType(appointment.getAppointmentType());
         response.setStatus(appointment.getStatus().name());
         response.setNotes(appointment.getNotes());
         return response;
+    }
+
+    private String resolveAppointmentType(String appointmentType) {
+        if (appointmentType == null || appointmentType.isBlank()) {
+            return "IN_PERSON";
+        }
+        return appointmentType;
     }
 }
