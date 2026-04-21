@@ -58,6 +58,13 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    public NotificationResponse getNotificationById(Long id) {
+        Notification notification = notificationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Notification not found with ID: " + id));
+        return mapToResponse(notification);
+    }
+
+    @Override
     public NotificationResponse markNotificationAsRead(Long id) {
         Notification notification = notificationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Notification not found with ID: " + id));
