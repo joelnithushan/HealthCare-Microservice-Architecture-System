@@ -1,7 +1,7 @@
-import api from './api';
+import api from "./api";
 
-const TOKEN_KEY = 'token';
-const USER_KEY = 'user';
+const TOKEN_KEY = "token";
+const USER_KEY = "user";
 
 export function storeSession(payload) {
   if (payload?.token) {
@@ -20,7 +20,7 @@ export function clearStoredSession() {
 
 export function getStoredUser() {
   const rawUser = localStorage.getItem(USER_KEY);
-  if (!rawUser || rawUser === 'undefined') {
+  if (!rawUser || rawUser === "undefined") {
     return null;
   }
 
@@ -37,22 +37,22 @@ export function normalizeError(error, fallbackMessage) {
 
 export const authApi = {
   login: async (payload) => {
-    const response = await api.post('/auth/login', payload);
+    const response = await api.post("/auth/login", payload);
     return response.data;
   },
   register: async (payload) => {
-    const response = await api.post('/auth/register', payload);
+    const response = await api.post("/auth/register", payload);
     return response.data;
   },
 };
 
 export const doctorsApi = {
   list: async () => {
-    const response = await api.get('/doctors');
+    const response = await api.get("/doctors");
     return response.data;
   },
   create: async (payload) => {
-    const response = await api.post('/doctors', payload);
+    const response = await api.post("/doctors", payload);
     return response.data;
   },
   update: async (id, payload) => {
@@ -63,11 +63,11 @@ export const doctorsApi = {
 
 export const appointmentsApi = {
   list: async () => {
-    const response = await api.get('/appointments');
+    const response = await api.get("/appointments");
     return response.data;
   },
   create: async (payload) => {
-    const response = await api.post('/appointments', payload);
+    const response = await api.post("/appointments", payload);
     return response.data;
   },
   cancel: async (id) => {
@@ -83,13 +83,13 @@ export const reportsApi = {
   },
   upload: async (userId, file) => {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
     const response = await api.post(`/users/${userId}/reports`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { "Content-Type": "multipart/form-data" },
     });
     return response.data;
   },
-  downloadUrl: (reportId) => `http://localhost:8080/api/users/reports/${reportId}`,
+  downloadUrl: (reportId) => `/api/users/reports/${reportId}`,
   remove: async (reportId) => {
     const response = await api.delete(`/users/reports/${reportId}`);
     return response.data;
@@ -106,7 +106,10 @@ export const prescriptionsApi = {
     return response.data;
   },
   create: async (doctorId, payload) => {
-    const response = await api.post(`/prescriptions?doctorId=${doctorId}`, payload);
+    const response = await api.post(
+      `/prescriptions?doctorId=${doctorId}`,
+      payload,
+    );
     return response.data;
   },
 };
@@ -117,11 +120,11 @@ export const paymentsApi = {
     return response.data;
   },
   listAll: async () => {
-    const response = await api.get('/admin/payments');
+    const response = await api.get("/admin/payments");
     return response.data;
   },
   getStats: async () => {
-    const response = await api.get('/admin/payments/stats');
+    const response = await api.get("/admin/payments/stats");
     return response.data;
   },
   updateStatus: async (id, status) => {
@@ -132,22 +135,22 @@ export const paymentsApi = {
 
 export const usersApi = {
   list: async () => {
-    const response = await api.get('/admin/users');
+    const response = await api.get("/admin/users");
     return response.data;
   },
 };
 
 export const adminApi = {
   getUserStats: async () => {
-    const response = await api.get('/admin/users/stats');
+    const response = await api.get("/admin/users/stats");
     return response.data;
   },
   getDoctorStats: async () => {
-    const response = await api.get('/admin/doctors/stats');
+    const response = await api.get("/admin/doctors/stats");
     return response.data;
   },
   getAppointmentStats: async () => {
-    const response = await api.get('/admin/appointments/stats');
+    const response = await api.get("/admin/appointments/stats");
     return response.data;
   },
   verifyDoctor: async (id) => {

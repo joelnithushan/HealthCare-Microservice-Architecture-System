@@ -1,46 +1,55 @@
-import React, { useEffect, useState } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
-import Sidebar from './Sidebar';
+import React, { useEffect, useState } from "react";
+import { Outlet, useLocation } from "react-router-dom";
+import Sidebar from "./Sidebar";
+import Header from "./Header";
+import "./DashboardShared.css";
 
 export default function DashboardLayout({ children }) {
-  const [userRoles, setUserRoles] = useState({ role: 'PATIENT', name: 'User', initials: 'U' });
+  const [userRoles, setUserRoles] = useState({
+    role: "PATIENT",
+    name: "User",
+    initials: "U",
+  });
   const location = useLocation();
 
   const updateAuth = () => {
-    const stored = localStorage.getItem('user');
-    const storedRole = localStorage.getItem('role'); // Fallback for legacy items
-    
-    if (stored && stored !== 'undefined') {
+    const stored = localStorage.getItem("user");
+    const storedRole = localStorage.getItem("role"); // Fallback for legacy items
+
+    if (stored && stored !== "undefined") {
       try {
         const user = JSON.parse(stored);
-        let initials = 'U';
+        let initials = "U";
         if (user.name) {
-          const parts = user.name.split(' ');
-          initials = parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : parts[0][0];
+          const parts = user.name.split(" ");
+          initials =
+            parts.length > 1
+              ? parts[0][0] + parts[parts.length - 1][0]
+              : parts[0][0];
         } else if (user.email) {
           initials = user.email[0];
         }
 
         setUserRoles({
-          role: user.role || storedRole || 'PATIENT',
-          name: user.name || 'User',
+          role: user.role || storedRole || "PATIENT",
+          name: user.name || "User",
           initials: initials.toUpperCase(),
         });
       } catch (e) {
-        console.error('Auth parse error', e);
+        console.error("Auth parse error", e);
       }
     } else if (storedRole) {
-      setUserRoles(prev => ({ ...prev, role: storedRole }));
+      setUserRoles((prev) => ({ ...prev, role: storedRole }));
     }
   };
 
   useEffect(() => {
     updateAuth();
-    window.addEventListener('userUpdated', updateAuth);
-    window.addEventListener('storage', updateAuth);
+    window.addEventListener("userUpdated", updateAuth);
+    window.addEventListener("storage", updateAuth);
     return () => {
-      window.removeEventListener('userUpdated', updateAuth);
-      window.removeEventListener('storage', updateAuth);
+      window.removeEventListener("userUpdated", updateAuth);
+      window.removeEventListener("storage", updateAuth);
     };
   }, []);
 
@@ -48,10 +57,10 @@ export default function DashboardLayout({ children }) {
   useEffect(() => {
     if (location.hash) {
       setTimeout(() => {
-        const id = location.hash.replace('#', '');
+        const id = location.hash.replace("#", "");
         const element = document.getElementById(id);
         if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          element.scrollIntoView({ behavior: "smooth", block: "start" });
         }
       }, 100);
     } else {
@@ -59,32 +68,48 @@ export default function DashboardLayout({ children }) {
     }
   }, [location]);
 
-  return (
+  return userRoles.role === "ADMIN" ? (
+    <div style={styles.adminLayout}>
+      <Header />
+      <main style={styles.adminMainContent}>{children || <Outlet />}</main>
+    </div>
+  ) : (
     <div style={styles.layout}>
-      <Sidebar 
-        userRole={userRoles.role} 
-        userName={userRoles.name} 
-        initials={userRoles.initials} 
+      <Sidebar
+        userRole={userRoles.role}
+        userName={userRoles.name}
+        initials={userRoles.initials}
       />
-      <main style={styles.mainContent}>
-        {children || <Outlet />}
-      </main>
+      <main style={styles.mainContent}>{children || <Outlet />}</main>
     </div>
   );
 }
 
 const styles = {
   layout: {
-    display: 'flex',
-    minHeight: '100vh',
-    width: '100%',
-    backgroundColor: 'var(--bg-main)', /* #F8FAFB */
+    display: "flex",
+    minHeight: "100vh",
+    width: "100%",
+    backgroundColor: "var(--bg-main)" /* #F8FAFB */,
   },
   mainContent: {
     flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    overflowX: 'hidden',
-    isolation: 'isolate', /* Prevent z-index issues */
-  }
+    display: "flex",
+    flexDirection: "column",
+    overflowX: "hidden",
+    isolation: "isolate" /* Prevent z-index issues */,
+  },
+  adminLayout: {
+    minHeight: "100vh",
+    width: "100%",
+    backgroundColor: "var(--bg-main)",
+    display: "flex",
+    flexDirection: "column",
+  },
+  adminMainContent: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    overflowX: "hidden",
+  },
 };

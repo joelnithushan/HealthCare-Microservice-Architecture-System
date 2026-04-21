@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Bell, Check, BellOff } from 'lucide-react';
 import api from '../../services/api';
 
 const NotificationsSection = ({ userId }) => {
@@ -48,7 +49,9 @@ const NotificationsSection = ({ userId }) => {
     <div className="pat-panel" id="notifications">
       <div className="pat-panel__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 className="pat-panel__title">
-          <span className="pat-panel__title-icon" style={{ background: '#fee2e2', color: '#dc2626' }}>🔔</span>
+          <span className="pat-panel__title-icon" style={{ background: '#fee2e2', color: '#dc2626' }}>
+            <Bell size={18} />
+          </span>
           Notifications
         </h3>
         {unreadCount > 0 && <span className="pat-badge pat-badge--pending">{unreadCount} New</span>}
@@ -56,7 +59,9 @@ const NotificationsSection = ({ userId }) => {
       <div className="pat-panel__body">
         {notifications.length === 0 ? (
           <div className="pat-empty-state">
-            <div className="pat-empty-state__icon">🔔</div>
+            <div className="pat-empty-state__icon">
+              <BellOff size={48} color="#dc2626" />
+            </div>
             <div className="pat-empty-state__text">No notifications yet</div>
             <div className="pat-empty-state__sub">You'll be notified about appointments and updates</div>
           </div>
@@ -82,8 +87,9 @@ const NotificationsSection = ({ userId }) => {
                   {notif.status === 'UNREAD' && (
                     <button 
                       onClick={() => markAsRead(notif.id)}
-                      style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: 0 }}
+                      style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}
                     >
+                      <Check size={14} />
                       Mark as read
                     </button>
                   )}

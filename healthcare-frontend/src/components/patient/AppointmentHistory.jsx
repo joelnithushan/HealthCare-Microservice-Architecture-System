@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
+import { Calendar, Clock, RefreshCw, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 
@@ -15,7 +16,7 @@ const AppointmentHistory = ({ appointments, loading, onRescheduleSuccess }) => {
       <div className="pat-panel">
         <div className="pat-panel__header">
           <h3 className="pat-panel__title">
-            <span className="pat-panel__title-icon" style={{ background: '#ede9fe', color: '#7c3aed' }}>📅</span>
+            <span className="pat-panel__title-icon" style={{ background: '#ede9fe', color: '#7c3aed' }}><Calendar size={18} /></span>
             My Appointments
           </h3>
         </div>
@@ -91,7 +92,7 @@ const AppointmentHistory = ({ appointments, loading, onRescheduleSuccess }) => {
       <div className="pat-panel">
         <div className="pat-panel__header">
           <h3 className="pat-panel__title">
-            <span className="pat-panel__title-icon" style={{ background: '#ede9fe', color: '#7c3aed' }}>📅</span>
+            <span className="pat-panel__title-icon" style={{ background: '#ede9fe', color: '#7c3aed' }}><Calendar size={18} /></span>
             My Appointments
           </h3>
         </div>
@@ -133,7 +134,8 @@ const AppointmentHistory = ({ appointments, loading, onRescheduleSuccess }) => {
                             </span>
                           </td>
                           <td>
-                            <button className="pat-btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => handleOpenReschedule(apt)}>
+                            <button className="pat-btn" style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => handleOpenReschedule(apt)}>
+                              <RefreshCw size={12} />
                               Reschedule
                             </button>
                           </td>
@@ -191,10 +193,12 @@ const AppointmentHistory = ({ appointments, loading, onRescheduleSuccess }) => {
           <div style={styles.modalContent}>
             <div style={styles.modalHeader}>
               <h3 style={{ margin: 0 }}>Reschedule Appointment</h3>
-              <button 
-                onClick={() => setRescheduleModalOpen(false)} 
-                style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--text-muted)' }}
-              >×</button>
+                <button 
+                  onClick={() => setRescheduleModalOpen(false)} 
+                  style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px' }}
+                >
+                  <X size={20} />
+                </button>
             </div>
             
             <form onSubmit={handleRescheduleSubmit} style={styles.modalBody}>

@@ -1,216 +1,180 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { createPayment } from '../services/payment';
-import toast from 'react-hot-toast';
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import api from "../services/api";
+import { CreditCard, CheckCircle, ShieldCheck } from "lucide-react";
+import "../components/DashboardShared.css";
 
 export default function Payment() {
   const { appointmentId } = useParams();
   const navigate = useNavigate();
+  const [appointment, setAppointment] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [paymentStatus, setPaymentStatus] = useState("PENDING"); // PENDING, PROCESSING, SUCCESS
 
-  const [amount, setAmount] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState('idle');
-  const [amountError, setAmountError] = useState('');
-  const [clientSecret, setClientSecret] = useState('');
-  const [publishableKey, setPublishableKey] = useState('');
-
-  const cardRef = useRef(null);
-  const cardElementRef = useRef(null);
-  const stripeRef = useRef(null);
-
-  const validateAmount = (val) => {
-    if (!val) return 'Amount is required.';
-    const num = parseFloat(val);
-    if (isNaN(num) || num <= 0) return 'Please enter a valid positive amount.';
-    if (num < 1) return 'Minimum payment is $1.00.';
-    if (num > 10000) return 'Maximum payment is $10,000.';
-    return '';
-  };
-
-  const handleCreatePayment = async (e) => {
-    e.preventDefault();
-    const err = validateAmount(amount);
-    setAmountError(err);
-    if (err) return;
-
-    setLoading(true);
-    try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const res = await createPayment(appointmentId, user.id, parseFloat(amount));
-      setClientSecret(res.data.stripeClientSecret);
-      setPublishableKey(res.data.stripePublishableKey);
-      setStatus('card_entry');
-    } catch (err) {
-      toast.error('Failed to initialize payment. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const user = React.useMemo(() => {
+    const stored = localStorage.getItem("user");
+    return stored && stored !== "undefined" ? JSON.parse(stored) : null;
+  }, []);
 
   useEffect(() => {
-    if (status !== 'card_entry' || !publishableKey) return;
-
-    const loadStripe = () => new Promise((resolve, reject) => {
-      if (window.Stripe) { resolve(); return; }
-      const s = document.createElement('script');
-      s.src = 'https://js.stripe.com/v3/';
-      s.onload = resolve;
-      s.onerror = reject;
-      document.body.appendChild(s);
-    });
-
-    loadStripe().then(() => {
-      stripeRef.current = window.Stripe(publishableKey);
-      const elements = stripeRef.current.elements();
-      cardElementRef.current = elements.create('card', {
-        style: {
-          base: {
-            color: '#334155',
-            fontFamily: "'Poppins', sans-serif",
-            fontSize: '16px',
-            '::placeholder': { color: '#94a3b8' },
-          },
-          invalid: { color: '#ef4444' },
-        },
-      });
-      cardElementRef.current.mount(cardRef.current);
-    });
-
-    return () => {
-      if (cardElementRef.current) cardElementRef.current.unmount();
-    };
-  }, [status, publishableKey]);
-
-  const handleConfirmPayment = async () => {
-    if (!stripeRef.current || !cardElementRef.current || !clientSecret) return;
-    setLoading(true);
-    try {
-      const { error: stripeError } = await stripeRef.current.confirmCardPayment(clientSecret, {
-        payment_method: { card: cardElementRef.current },
-      });
-      if (stripeError) {
-        toast.error(stripeError.message);
-      } else {
-        setStatus('success');
+    const fetchDetails = async () => {
+      try {
+        const apptRes = await api.get(`/appointments/${appointmentId}`);
+        setAppointment(apptRes.data);
+        
+        // Also check if payment already made
+        const payRes = await api.get(`/payments/user/${user.id}`);
+        const existingPayment = payRes.data.find(p => p.appointmentId === appointmentId);
+        
+        if (existingPayment && existingPayment.status === 'COMPLETED') {
+          setPaymentStatus('SUCCESS');
+        }
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load appointment details block.");
+      } finally {
+        setLoading(false);
       }
-    } catch {
-      toast.error('Payment confirmation failed. Please try again.');
-    } finally {
-      setLoading(false);
+    };
+    fetchDetails();
+  }, [appointmentId, user.id]);
+
+  const handlePayment = async (e) => {
+    e.preventDefault();
+    setPaymentStatus("PROCESSING");
+    setError(null);
+    try {
+      const payload = {
+        appointmentId: appointmentId,
+        patientId: user.id,
+        doctorId: appointment.doctorId,
+        amount: 2500, // Using default simulated fee
+        currency: "LKR",
+        paymentMethod: "CARD",
+        status: "COMPLETED"
+      };
+
+      await api.post('/payments/process', payload);
+      
+      // Update appointment status to ACCEPTED since payment done
+      await api.put(`/appointments/${appointmentId}/status`, { status: "ACCEPTED" });
+
+      setPaymentStatus("SUCCESS");
+      
+      // Create a notification for the patient automatically
+      await api.post('/notifications', {
+        userId: user.id,
+        message: `Payment of LKR 2500 successful for appointment with Dr. ${appointment.doctorName}.`,
+        type: "PAYMENT",
+        read: false
+      });
+      
+    } catch (err) {
+      console.error(err);
+      setError("Payment processing failed. Please try again.");
+      setPaymentStatus("PENDING");
     }
   };
 
-  if (status === 'success') return (
-    <div style={styles.wrapper}>
-      <div className="flat-card" style={styles.card}>
-        <div style={styles.successIcon}></div>
-        <h2 style={styles.heading}>Payment Successful!</h2>
-        <p style={styles.sub}>Your consultation fee has been paid. You can now join your video call.</p>
-        <button className="flat-btn" style={{ width: '100%', marginBottom: '1rem' }} onClick={() => navigate(`/dashboard/consult/${appointmentId}`)}>
-           Join Video Call
-        </button>
-        <button className="flat-btn-outline" style={{ width: '100%' }} onClick={() => navigate('/dashboard/appointments')}>
-          ← Back to Appointments
-        </button>
+  if (loading) {
+    return (
+      <div className="dashboard-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <div className="skeleton" style={{ width: '400px', height: '400px' }}></div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (error && !appointment) {
+    return (
+      <div className="dashboard-container">
+        <div className="dash-card" style={{ backgroundColor: 'var(--danger-bg)', color: 'var(--danger)' }}>
+          {error}
+          <div style={{ marginTop: '16px' }}>
+            <button className="btn btn-outline" onClick={() => navigate('/patient/dashboard/appointments')}>Back to Appointments</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={styles.wrapper}>
-      <div className="flat-card" style={styles.card}>
-        <div style={{ fontSize: 40, marginBottom: 12, textAlign: 'center' }}></div>
-        <h2 style={styles.heading}>Pay Consultation Fee</h2>
-        <p style={styles.sub}>Appointment #{appointmentId} • Secure payment powered by Stripe</p>
-
-        {status === 'idle' && (
-          <form onSubmit={handleCreatePayment} noValidate>
-            <div className="form-group" style={{ textAlign: 'left' }}>
-              <label className="flat-label">Amount (USD)</label>
-              <input
-                type="number"
-                min="1"
-                max="10000"
-                step="0.01"
-                placeholder="e.g. 25.00"
-                value={amount}
-                onChange={e => { setAmount(e.target.value); setAmountError(''); }}
-                className="flat-input"
-                style={amountError ? { borderColor: 'red' } : {}}
-              />
-              {amountError && <p style={styles.fieldError}>{amountError}</p>}
-            </div>
-            <button type="submit" disabled={loading} className="flat-btn" style={{ width: '100%', marginTop: '0.5rem' }}>
-              {loading ? 'Initializing…' : 'Proceed to Payment →'}
-            </button>
-          </form>
-        )}
-
-        {status === 'card_entry' && (
-          <div style={{ textAlign: 'left' }}>
-            <div className="form-group">
-              <label className="flat-label">Card Details</label>
-              <div ref={cardRef} style={styles.stripeCard} />
-              <p style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 12 }}>
-                Test card: <strong style={{ color: 'var(--text-main)' }}>4242 4242 4242 4242</strong> · Any future date · Any CVC
-              </p>
-            </div>
-            <button onClick={handleConfirmPayment} disabled={loading} className="flat-btn" style={{ width: '100%' }}>
-              {loading ? 'Processing…' : `Pay $${parseFloat(amount).toFixed(2)}`}
+    <div className="dashboard-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <div className="dash-card" style={{ maxWidth: "500px", width: "100%" }}>
+        
+        {paymentStatus === "SUCCESS" ? (
+          <div className="empty-state" style={{ padding: "40px 20px" }}>
+            <CheckCircle size={64} color="var(--success)" style={{ opacity: 1, marginBottom: '24px' }} />
+            <h2 style={{ margin: "0 0 12px", color: "var(--text-main)" }}>Payment Successful!</h2>
+            <p style={{ color: "var(--text-muted)", marginBottom: "32px", fontSize: "0.95rem" }}>
+              Your appointment with Dr. {appointment?.doctorName} is confirmed.
+            </p>
+            <button className="btn btn-primary" onClick={() => navigate('/patient/dashboard/appointments')}>
+              Back to Appointments
             </button>
           </div>
-        )}
+        ) : (
+          <>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
+              <h2 style={{ margin: 0, color: "var(--text-main)", fontSize: "1.4rem" }}>Checkout</h2>
+              <ShieldCheck size={24} color="var(--success)" />
+            </div>
 
-        <button className="flat-btn-outline" style={{ width: '100%', marginTop: '1rem', border: 'none' }} onClick={() => navigate(-1)}>← Cancel</button>
+            <div style={{ backgroundColor: "#F8FAFC", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: "16px", marginBottom: "24px" }}>
+              <h3 style={{ margin: "0 0 12px", fontSize: "1rem", color: "var(--text-main)" }}>Order Summary</h3>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "0.9rem" }}>
+                <span style={{ color: "var(--text-muted)" }}>Consultation - Dr. {appointment?.doctorName}</span>
+                <span style={{ fontWeight: "600", color: "var(--text-main)" }}>LKR 2,500</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "0.9rem" }}>
+                <span style={{ color: "var(--text-muted)" }}>Platform Fee</span>
+                <span style={{ fontWeight: "600", color: "var(--text-main)" }}>LKR 0</span>
+              </div>
+              <hr style={{ border: "none", borderTop: "1px dashed var(--border)", margin: "12px 0" }} />
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "1.1rem" }}>
+                <span style={{ fontWeight: "600", color: "var(--text-main)" }}>Total</span>
+                <span style={{ fontWeight: "bold", color: "var(--primary)" }}>LKR 2,500</span>
+              </div>
+            </div>
+
+            {error && <div style={{ color: "var(--danger)", marginBottom: "16px", fontSize: "0.9rem" }}>{error}</div>}
+
+            <form onSubmit={handlePayment}>
+              <div className="form-group">
+                <label className="form-label">Name on Card</label>
+                <input type="text" className="form-input" required placeholder="John Doe" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Card Number</label>
+                <div style={{ position: "relative" }}>
+                   <CreditCard size={18} style={{ position: "absolute", left: "12px", top: "11px", color: "var(--text-muted)" }} />
+                   <input type="text" className="form-input" required placeholder="0000 0000 0000 0000" style={{ paddingLeft: "38px" }} maxLength={19} />
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "24px" }}>
+                <div>
+                  <label className="form-label">Expiry</label>
+                  <input type="text" className="form-input" required placeholder="MM/YY" maxLength={5} />
+                </div>
+                <div>
+                  <label className="form-label">CVC</label>
+                  <input type="password" className="form-input" required placeholder="123" maxLength={4} />
+                </div>
+              </div>
+
+              <button type="submit" className="btn btn-primary" style={{ width: "100%", padding: "12px", fontSize: "1rem" }} disabled={paymentStatus === "PROCESSING"}>
+                {paymentStatus === "PROCESSING" ? "Processing..." : `Pay LKR 2,500`}
+              </button>
+              
+              <div style={{ textAlign: "center", marginTop: "16px" }}>
+                <button type="button" className="btn btn-outline" style={{ border: "none", color: "var(--text-muted)" }} onClick={() => navigate(-1)}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );
 }
-
-const styles = {
-  wrapper: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '100%',
-    padding: 20,
-    animation: 'fadeIn 0.3s ease-out',
-  },
-  card: {
-    padding: '40px 36px',
-    maxWidth: 460,
-    width: '100%',
-    textAlign: 'center',
-  },
-  successIcon: {
-    fontSize: 56,
-    marginBottom: 16,
-  },
-  heading: {
-    fontSize: '1.5rem',
-    fontWeight: 700,
-    color: 'var(--text-main)',
-    marginBottom: 8,
-    margin: 0,
-  },
-  sub: {
-    color: 'var(--text-muted)',
-    fontSize: 14,
-    marginBottom: 24,
-    lineHeight: 1.6,
-  },
-  fieldError: {
-    color: '#ef4444',
-    fontSize: 12,
-    marginBottom: 12,
-    textAlign: 'left',
-    fontWeight: 500,
-  },
-  stripeCard: {
-    padding: 14,
-    background: '#f8fafc',
-    border: '1px solid var(--border-light)',
-    borderRadius: 'var(--radius-none)',
-    marginBottom: 12,
-  },
-};

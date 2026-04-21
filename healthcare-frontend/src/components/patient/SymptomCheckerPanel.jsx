@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Activity } from 'lucide-react';
 import api from '../../services/api';
 
 const SymptomCheckerPanel = () => {

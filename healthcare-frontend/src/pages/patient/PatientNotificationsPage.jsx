@@ -1,0 +1,134 @@
+import React, { useState, useEffect } from "react";
+import api from "../../services/api";
+import { Bell, Check, Trash2, Info } from "lucide-react";
+import "../../components/DashboardShared.css";
+
+export default function PatientNotificationsPage() {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const user = React.useMemo(() => {
+    const stored = localStorage.getItem("user");
+    return stored && stored !== "undefined" ? JSON.parse(stored) : null;
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/notifications/user/${user.id}`);
+      const notifs = res.data || [];
+      notifs.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setNotifications(notifs);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load notifications.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+    // eslint-disable-next-line
+  }, [user.id]);
+
+  const handleMarkAsRead = async (id) => {
+    try {
+      await api.put(`/notifications/${id}/read`);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      const unread = notifications.filter(n => !n.read);
+      for (const n of unread) {
+        await api.put(`/notifications/${n.id}/read`);
+      }
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await api.delete(`/notifications/${id}`);
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  return (
+    <div className="dashboard-container">
+      <div className="dashboard-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h1>Notifications</h1>
+          <p>Stay updated on your appointments, payments, and reports.</p>
+        </div>
+        {notifications.some(n => !n.read) && (
+          <button className="btn btn-outline" onClick={handleMarkAllAsRead}>
+            Mark all as read
+          </button>
+        )}
+      </div>
+
+      <div className="dash-card">
+        {loading ? (
+          <div className="skeleton" style={{ height: "300px" }}></div>
+        ) : error ? (
+          <div style={{ color: "var(--danger)", padding: "24px 0" }}>{error}</div>
+        ) : notifications.length === 0 ? (
+          <div className="empty-state">
+            <Bell size={40} />
+            <p style={{ marginTop: "12px" }}>You have no notifications.</p>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {notifications.map((notif) => (
+              <div key={notif.id} style={{ 
+                borderLeft: notif.read ? "4px solid transparent" : "4px solid var(--primary)",
+                backgroundColor: notif.read ? "transparent" : "#F8FAFC",
+                borderTop: "1px solid var(--border)",
+                borderRight: "1px solid var(--border)",
+                borderBottom: "1px solid var(--border)",
+                borderRadius: "0 var(--radius-md) var(--radius-md) 0",
+                padding: "16px",
+                display: "flex", 
+                justifyContent: "space-between", 
+                alignItems: "flex-start" 
+              }}>
+                <div style={{ display: "flex", gap: "12px" }}>
+                  <div style={{ color: notif.read ? "var(--text-muted)" : "var(--primary)", marginTop: "2px" }}>
+                    {notif.type === 'APPOINTMENT' ? <Bell size={18} /> : <Info size={18} />}
+                  </div>
+                  <div>
+                    <p style={{ margin: "0 0 6px", fontSize: "0.95rem", color: "var(--text-main)", fontWeight: notif.read ? "400" : "600" }}>{notif.message}</p>
+                    <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                      {new Date(notif.date).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+                
+                <div style={{ display: "flex", gap: "8px" }}>
+                  {!notif.read && (
+                    <button className="btn btn-outline" style={{ padding: "6px", border: "none" }} title="Mark as read" onClick={() => handleMarkAsRead(notif.id)}>
+                      <Check size={16} />
+                    </button>
+                  )}
+                  <button className="btn btn-outline" style={{ padding: "6px", border: "none", color: "var(--danger)" }} title="Delete" onClick={() => handleDelete(notif.id)}>
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

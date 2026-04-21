@@ -1,0 +1,134 @@
+.patient-section-page {
+  padding: 28px;
+  animation: patientFadeIn 0.25s ease;
+}
+
+@keyframes patientFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.patient-section-header {
+  margin-bottom: 16px;
+}
+
+.patient-section-title {
+  margin: 0;
+  color: var(--navy);
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.section-icon {
+  color: var(--accent);
+}
+
+.patient-section-subtitle {
+  margin: 0;
+  color: var(--text-muted);
+  font-family: var(--font-base);
+  font-size: 0.92rem;
+}
+
+.patient-consultation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.patient-consult-card {
+  background: #fff;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.patient-consult-card h4 {
+  margin: 0 0 8px;
+  color: var(--text-main);
+  font-size: 0.98rem;
+}
+
+.patient-consult-meta {
+  margin: 0 0 6px;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+
+.patient-consult-status {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.patient-consult-status.accepted {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.patient-consult-status.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.patient-consult-status.completed {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.patient-consult-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.patient-action-btn {
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 8px 12px;
+}
+
+.patient-action-btn.primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.patient-action-btn.secondary {
+  background: #f8fafc;
+  color: var(--navy);
+  border: 1px solid var(--border-light);
+}
+
+.patient-empty-box {
+  border: 1px dashed var(--border-light);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 30px 20px;
+}
+
+@media (max-width: 768px) {
+  .patient-section-page {
+    padding: 16px;
+  }
+
+  .patient-section-title {
+    font-size: 1.15rem;
+  }
+}

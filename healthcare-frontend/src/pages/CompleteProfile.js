@@ -23,6 +23,11 @@ const validatePatientFields = (d) => {
   if (dobErr) e.dob = dobErr;
   
   if (!d.gender) e.gender = 'Gender is required.';
+
+  if (!d.password) e.password = 'Password is required.';
+  else if (d.password.length < 8) e.password = 'Password must be at least 8 characters.';
+  else if (!/(?=.*[A-Z])(?=.*[0-9])/.test(d.password)) e.password = 'Password needs at least 1 uppercase and 1 number.';
+
   return e;
 };
 
@@ -39,6 +44,11 @@ const validateDoctorFields = (d) => {
   
   if (!d.specialization || !d.specialization.trim()) e.specialization = 'Please select a specialization.';
   if (!d.hospitalAttached || !d.hospitalAttached.trim()) e.hospitalAttached = 'Please specify your primary hospital.';
+
+  if (!d.password) e.password = 'Password is required.';
+  else if (d.password.length < 8) e.password = 'Password must be at least 8 characters.';
+  else if (!/(?=.*[A-Z])(?=.*[0-9])/.test(d.password)) e.password = 'Password needs at least 1 uppercase and 1 number.';
+
   return e;
 };
 
@@ -48,9 +58,12 @@ export default function CompleteProfile() {
   const [formData, setFormData] = useState({
     nic: '', mobileNumber: '', dob: '', gender: '',
     slmcNumber: '', specialization: '', hospitalAttached: '',
+    district: '', password: '',
   });
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const togglePasswordVisibility = () => setShowPassword(!showPassword);
 
   useEffect(() => {
     const stored = localStorage.getItem('user');
@@ -67,6 +80,7 @@ export default function CompleteProfile() {
         slmcNumber: u.slmcNumber || '',
         specialization: u.specialization || '',
         hospitalAttached: u.hospitalAttached || '',
+        district: u.district || '',
       }));
     } else {
       navigate('/login');
@@ -90,6 +104,41 @@ export default function CompleteProfile() {
     setLoading(true);
     try {
       const res = await api.put(`/users/${user.id}`, formData);
+      
+      // Update Doctor Service if applicable
+      if (isDoctor) {
+        try {
+          let doctorProfileId = null;
+          try {
+            const docRes = await api.get(`/doctors/email/${user.email}`);
+            doctorProfileId = docRes.data?.id;
+          } catch (err) {
+            if (err.response?.status === 404) {
+               const createRes = await api.post("/doctors", {
+                 name: user.name,
+                 email: user.email,
+                 specialization: formData.specialization,
+                 phone: formData.mobileNumber,
+                 availability: "Schedule pending"
+               });
+               doctorProfileId = createRes.data?.id;
+            }
+          }
+
+          if (doctorProfileId && doctorProfileId !== res.data.id) { // res.data.id is userId, doctorProfileId is different
+             await api.put(`/doctors/${doctorProfileId}`, {
+               name: user.name,
+               email: user.email,
+               specialization: formData.specialization,
+               phone: formData.mobileNumber,
+               availability: "Schedule pending"
+             });
+          }
+        } catch (docErr) {
+          console.error("Doctor service sync failed during profile completion", docErr);
+        }
+      }
+
       // Update the local user object with the complete profile
       const updatedUser = { ...user, ...res.data, profileComplete: true };
       localStorage.setItem('user', JSON.stringify(updatedUser));
@@ -160,6 +209,14 @@ export default function CompleteProfile() {
               {fieldErrors.mobileNumber && <span style={styles.fieldError}>{fieldErrors.mobileNumber}</span>}
             </div>
 
+            {/* District — common to all during onboarding */}
+            <div style={styles.formGroup}>
+              <label style={styles.label}>District / Location *</label>
+              <input type="text" name="district" className="flat-input" value={formData.district} onChange={handleChange}
+                placeholder="e.g. Colombo" style={{...styles.input, ...(fieldErrors.district ? {borderColor:'red'} : {})}} />
+              {fieldErrors.district && <span style={styles.fieldError}>{fieldErrors.district}</span>}
+            </div>
+
             {/* Patient-specific fields */}
             {!isDoctor && (
               <>
@@ -220,6 +277,33 @@ export default function CompleteProfile() {
                 </div>
               </>
             )}
+
+            {/* Set Password Field */}
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Set Acccount Password *</label>
+              <div style={{ position: "relative" }}>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  className="flat-input"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Create a strong password"
+                  style={{ ...styles.input, paddingRight: "40px", ...(fieldErrors.password ? {borderColor:'red'} : {}) }}
+                />
+                <div onClick={togglePasswordVisibility} style={styles.eyeIconContainer}>
+                  {showPassword ? (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                  )}
+                </div>
+              </div>
+              {fieldErrors.password && <span style={styles.fieldError}>{fieldErrors.password}</span>}
+              <p style={{fontSize: '0.75rem', color: '#64748b', marginTop: '6px'}}>
+                Please set a secure password so you can use standard email login next time.
+              </p>
+            </div>
 
             <button type="submit" className="flat-btn" style={styles.submitBtn} disabled={loading}>
               {loading ? 'Saving...' : 'Complete Profile & Continue'}
@@ -357,5 +441,16 @@ const styles = {
     padding: '14px',
     fontSize: '1rem',
     borderRadius: '8px',
+  },
+  eyeIconContainer: {
+    position: 'absolute',
+    right: '12px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    cursor: 'pointer',
+    color: 'var(--text-muted)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 };

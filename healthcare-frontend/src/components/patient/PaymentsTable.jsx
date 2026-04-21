@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { CreditCard, Wallet } from 'lucide-react';
 
 const PaymentsTable = ({ payments, loading }) => {
   if (loading) {
@@ -7,7 +8,9 @@ const PaymentsTable = ({ payments, loading }) => {
       <div className="pat-panel">
         <div className="pat-panel__header">
           <h3 className="pat-panel__title">
-            <span className="pat-panel__title-icon" style={{ background: '#dcfce7', color: '#15803d' }}>💰</span>
+            <span className="pat-panel__title-icon" style={{ background: '#dcfce7', color: '#15803d' }}>
+              <CreditCard size={18} />
+            </span>
             Recent Payments
           </h3>
         </div>
@@ -29,14 +32,18 @@ const PaymentsTable = ({ payments, loading }) => {
     <div className="pat-panel">
       <div className="pat-panel__header">
         <h3 className="pat-panel__title">
-          <span className="pat-panel__title-icon" style={{ background: '#dcfce7', color: '#15803d' }}>💰</span>
+          <span className="pat-panel__title-icon" style={{ background: '#dcfce7', color: '#15803d' }}>
+            <CreditCard size={18} />
+          </span>
           Recent Payments
         </h3>
       </div>
       <div className="pat-panel__body pat-panel__body--no-pad">
         {payments.length === 0 ? (
           <div className="pat-empty-state">
-            <div className="pat-empty-state__icon">💳</div>
+            <div className="pat-empty-state__icon">
+              <Wallet size={48} color="#15803d" />
+            </div>
             <div className="pat-empty-state__text">No recent payments found</div>
             <div className="pat-empty-state__sub">Payment records will appear here after consultations</div>
           </div>

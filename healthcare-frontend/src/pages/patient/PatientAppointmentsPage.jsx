@@ -1,0 +1,185 @@
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import api from "../../services/api";
+import { Calendar, Video, CreditCard, XCircle, Info } from "lucide-react";
+import "../../components/DashboardShared.css";
+
+export default function PatientAppointmentsPage() {
+  const navigate = useNavigate();
+  const [appointments, setAppointments] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [filter, setFilter] = useState("UPCOMING"); // UPCOMING, PENDING, ACCEPTED, CANCELLED, COMPLETED, ALL
+  
+  const user = React.useMemo(() => {
+    const stored = localStorage.getItem("user");
+    return stored && stored !== "undefined" ? JSON.parse(stored) : null;
+  }, []);
+
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      try {
+        const [apptsRes, paysRes] = await Promise.allSettled([
+          api.get(`/appointments/user/${user.id}`),
+          api.get(`/payments/user/${user.id}`)
+        ]);
+
+        let fetchedAppts = apptsRes.status === 'fulfilled' ? apptsRes.value.data : [];
+        let fetchedPays = paysRes.status === 'fulfilled' ? paysRes.value.data : [];
+        
+        fetchedAppts.sort((a, b) => new Date(b.appointmentDate) - new Date(a.appointmentDate)); // newest first
+        setAppointments(fetchedAppts);
+        setPayments(fetchedPays);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load your appointments.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAppointments();
+  }, [user.id]);
+
+  const handleCancelClick = async (apptId) => {
+    if (!window.confirm("Are you sure you want to cancel this appointment?")) return;
+    try {
+      await api.put(`/appointments/${apptId}/status`, { status: 'CANCELLED' });
+      setAppointments(prev => prev.map(a => a.id === apptId ? { ...a, status: 'CANCELLED' } : a));
+    } catch (err) {
+      alert("Failed to cancel the appointment.");
+    }
+  };
+
+  const today = new Date().toISOString().split('T')[0];
+
+  const getFilteredAppointments = () => {
+    if (filter === "ALL") return appointments;
+    if (filter === "UPCOMING") return appointments.filter(a => a.appointmentDate >= today && (a.status === 'PENDING' || a.status === 'ACCEPTED'));
+    if (filter === "COMPLETED") return appointments.filter(a => a.status === 'COMPLETED');
+    return appointments.filter(a => a.status === filter);
+  };
+
+  const getPaymentStatus = (apptId) => {
+    const pay = payments.find(p => p.appointmentId === apptId);
+    if (!pay) return "NO_RECORD";
+    return pay.status; // PENDING, COMPLETED, etc.
+  };
+
+  const getBadgeClass = (status) => {
+    switch (status) {
+      case 'ACCEPTED': return 'badge-success';
+      case 'COMPLETED': return 'badge-info';
+      case 'CANCELLED': case 'REJECTED': return 'badge-danger';
+      case 'PENDING': default: return 'badge-pending';
+    }
+  };
+
+  const filteredAppts = getFilteredAppointments();
+
+  return (
+    <div className="dashboard-container">
+      <div className="dashboard-header">
+        <h1>My Appointments</h1>
+        <p>Manage your medical bookings and upcoming consultations.</p>
+      </div>
+
+      <div className="dash-card" style={{ marginBottom: "24px" }}>
+        <div style={{ display: "flex", gap: "12px", borderBottom: "1px solid var(--border)", paddingBottom: "12px", overflowX: 'auto' }}>
+          {["UPCOMING", "PENDING", "ACCEPTED", "COMPLETED", "CANCELLED", "ALL"].map(f => (
+            <button 
+              key={f}
+              onClick={() => setFilter(f)}
+              style={{
+                background: "transparent", border: "none", cursor: "pointer", 
+                padding: "8px 16px", borderRadius: "var(--radius-md)",
+                backgroundColor: filter === f ? "var(--primary)" : "transparent",
+                color: filter === f ? "#fff" : "var(--text-muted)",
+                fontWeight: filter === f ? "600" : "500",
+                minWidth: 'max-content'
+              }}
+            >
+              {f.charAt(0) + f.slice(1).toLowerCase()}
+            </button>
+          ))}
+        </div>
+        
+        {loading ? (
+          <div className="skeleton" style={{ height: "300px", marginTop: "24px" }}></div>
+        ) : error ? (
+          <div style={{ color: "var(--danger)", padding: "24px 0" }}>{error}</div>
+        ) : filteredAppts.length === 0 ? (
+          <div className="empty-state">
+             <Calendar size={32} />
+             <p>No appointments match the selected filter.</p>
+          </div>
+        ) : (
+          <div className="table-container" style={{ marginTop: "16px" }}>
+            <table className="dash-table">
+              <thead>
+                <tr>
+                  <th>Date & Time</th>
+                  <th>Doctor</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Payment</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAppts.map(a => {
+                  const payStatus = getPaymentStatus(a.id);
+                  return (
+                    <tr key={a.id}>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <div style={{ fontWeight: '500', color: 'var(--text-main)' }}>{new Date(a.appointmentDate).toLocaleDateString()}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{a.appointmentTime}</div>
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: '500', color: 'var(--text-main)' }}>Dr. {a.doctorName || 'Unknown'}</div>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{a.appointmentType || 'PHYSICAL'}</span>
+                      </td>
+                      <td>
+                        <span className={`badge ${getBadgeClass(a.status)}`}>{a.status}</span>
+                      </td>
+                      <td>
+                        {payStatus === 'NO_RECORD' ? (
+                           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Unpaid</span>
+                        ) : payStatus === 'COMPLETED' ? (
+                           <span className="badge badge-success">Paid</span>
+                        ) : (
+                           <span className="badge badge-pending">{payStatus}</span>
+                        )}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                          {(payStatus === 'NO_RECORD' || payStatus === 'PENDING') && (a.status === 'PENDING' || a.status === 'ACCEPTED') && (
+                            <button className="btn btn-primary" style={{ padding: '6px 10px', fontSize: '0.8rem' }} onClick={() => navigate(`/patient/dashboard/pay/${a.id}`)}>
+                              <CreditCard size={14} /> Pay
+                            </button>
+                          )}
+                          {a.status === 'ACCEPTED' && a.appointmentType === 'VIDEO' && (
+                            <button className="btn btn-success" style={{ padding: '6px 10px', fontSize: '0.8rem' }} onClick={() => navigate(`/patient/dashboard/consult/${a.id}`)}>
+                              <Video size={14} /> Join
+                            </button>
+                          )}
+                          {(a.status === 'PENDING' || a.status === 'ACCEPTED') && (
+                            <button className="btn btn-outline" style={{ padding: '6px 10px', fontSize: '0.8rem', color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => handleCancelClick(a.id)}>
+                              <XCircle size={14} /> Cancel
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

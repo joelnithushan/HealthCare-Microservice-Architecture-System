@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import PropTypes from 'prop-types';
-import { createSession } from '../../services/telemedicine';
-import toast from 'react-hot-toast';
+import React, { useState } from "react";
+import PropTypes from "prop-types";
+import { createSession } from "../../services/telemedicine";
+import toast from "react-hot-toast";
 
 const TelemedicineModal = ({ isOpen, onClose, appointment, doctorId }) => {
   const [loading, setLoading] = useState(false);
@@ -12,11 +12,15 @@ const TelemedicineModal = ({ isOpen, onClose, appointment, doctorId }) => {
     setLoading(true);
     try {
       // Assuming createSession returns { data: { joinUrl: '...' } }
-      const res = await createSession(appointment.id, doctorId, appointment.patientId);
+      const res = await createSession(
+        appointment.id,
+        doctorId,
+        appointment.patientId,
+      );
       setSession(res.data);
-      toast.success('Telemedicine session created successfully');
+      toast.success("Telemedicine session created successfully");
     } catch (error) {
-      toast.error('Failed to create telemedicine session.');
+      toast.error("Failed to create telemedicine session.");
       console.error(error);
     } finally {
       setLoading(false);
@@ -26,7 +30,7 @@ const TelemedicineModal = ({ isOpen, onClose, appointment, doctorId }) => {
   const copyToClipboard = () => {
     if (session && session.joinUrl) {
       navigator.clipboard.writeText(session.joinUrl);
-      toast.success('Link copied to clipboard!');
+      toast.success("Link copied to clipboard!");
     }
   };
 
@@ -42,37 +46,46 @@ const TelemedicineModal = ({ isOpen, onClose, appointment, doctorId }) => {
 
         <div className="doc-modal__body">
           {!session ? (
-            <div style={{ textAlign: 'center', padding: '10px 0' }}>
-              <p style={{ marginBottom: '20px', color: 'var(--text-main)' }}>
-                You are about to start a secure video consultation with <strong>{appointment?.patientName || `Patient #${appointment?.patientId || 'N/A'}`}</strong>.
+            <div style={{ textAlign: "center", padding: "10px 0" }}>
+              <p style={{ marginBottom: "20px", color: "var(--text-main)" }}>
+                You are about to start a secure video consultation with{" "}
+                <strong>
+                  {appointment?.patientName ||
+                    `Patient #${appointment?.patientId || "N/A"}`}
+                </strong>
+                .
               </p>
               <button
                 className="doc-modal-btn doc-modal-btn--accent"
                 onClick={handleStartSession}
                 disabled={loading}
               >
-                {loading ? 'Creating Session...' : 'Generate Meeting Link'}
+                {loading ? "Creating Session..." : "Generate Meeting Link"}
               </button>
             </div>
           ) : (
             <div className="doc-tele-result">
               <div className="doc-tele-result__icon"></div>
               <div className="doc-tele-result__title">Session Ready</div>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
                 Please share this link with your patient or join directly below.
               </p>
               <div className="doc-tele-result__link">
-                {session.joinUrl || 'https://meet.mediconnect.com/session-abc-123'}
+                {session.joinUrl || "https://meet.clinexa.com/session-abc-123"}
               </div>
-              <button className="doc-modal-btn doc-modal-btn--cancel" onClick={copyToClipboard} style={{ marginRight: '10px' }}>
+              <button
+                className="doc-modal-btn doc-modal-btn--cancel"
+                onClick={copyToClipboard}
+                style={{ marginRight: "10px" }}
+              >
                 Copy Link
               </button>
               <a
-                href={session.joinUrl || '#'}
+                href={session.joinUrl || "#"}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="doc-modal-btn doc-modal-btn--primary"
-                style={{ display: 'inline-block', textDecoration: 'none' }}
+                style={{ display: "inline-block", textDecoration: "none" }}
               >
                 Join Now
               </a>
@@ -81,8 +94,11 @@ const TelemedicineModal = ({ isOpen, onClose, appointment, doctorId }) => {
         </div>
 
         <div className="doc-modal__footer">
-          <button className="doc-modal-btn doc-modal-btn--cancel" onClick={onClose}>
-            {session ? 'Close' : 'Cancel'}
+          <button
+            className="doc-modal-btn doc-modal-btn--cancel"
+            onClick={onClose}
+          >
+            {session ? "Close" : "Cancel"}
           </button>
         </div>
       </div>

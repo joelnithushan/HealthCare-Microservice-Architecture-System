@@ -1,0 +1,208 @@
+.doctors-discovery {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.doctors-toolbar {
+  padding: 14px;
+  border: 1px solid var(--border-light);
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+}
+
+.doctors-toolbar-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 12px;
+}
+
+.doctors-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.doctors-filter-group-wide {
+  min-width: 0;
+}
+
+.doctors-filter-label {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.doctors-filter-input {
+  min-height: 42px;
+}
+
+.doctors-toolbar-meta {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.doctors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.doctors-card {
+  padding: 18px 14px;
+  text-align: center;
+  border: 1px solid var(--border-light);
+  animation: patientFadeIn 0.25s ease both;
+}
+
+.doctors-card-head {
+  position: relative;
+  display: inline-flex;
+  margin-bottom: 12px;
+}
+
+.doctors-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.doctors-presence-dot {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 2px solid #fff;
+}
+
+.doctors-name {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 1.04rem;
+  font-weight: 700;
+  line-height: 1.35;
+  min-height: 2.7em;
+}
+
+.doctors-chip {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.doctors-chip-specialization {
+  background: #e6f0ff;
+  color: #174ea6;
+}
+
+.doctors-chip-available {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.doctors-chip-muted {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.doctors-hospital {
+  margin-top: 10px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  min-height: 2.4em;
+}
+
+.doctors-availability-wrap {
+  margin-top: 10px;
+}
+
+.doctors-empty-state {
+  padding: 28px;
+  text-align: center;
+}
+
+.doctors-empty-title {
+  color: var(--text-main);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.doctors-empty-subtitle {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.doctors-error-box {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.doctors-loading-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.doctors-skeleton-card {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.doctors-skeleton-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  margin-bottom: 12px;
+}
+
+.doctors-skeleton-line {
+  height: 11px;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+.doctors-skeleton-line-lg {
+  width: 64%;
+}
+
+.doctors-skeleton-line-md {
+  width: 44%;
+}
+
+@media (max-width: 920px) {
+  .doctors-toolbar-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .doctors-toolbar-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}

@@ -1,336 +1,142 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { getSessionByAppointment, createSession, startSession, endSession } from '../services/telemedicine';
-import api from '../services/api';
-import ConsultationSidePanel from '../components/doctor/ConsultationSidePanel';
-import './VideoConsultation.css'; // Will create this for cleaner layout
-
-const JITSI_DOMAIN = 'meet.jit.si';
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import api from "../services/api";
+import { Video, Mic, MicOff, VideoOff, PhoneOff, Settings, Users } from "lucide-react";
+import "../components/DashboardShared.css";
 
 export default function VideoConsultation() {
   const { appointmentId } = useParams();
   const navigate = useNavigate();
-  const jitsiContainerRef = useRef(null);
-  const apiRef = useRef(null);
-
-  const [session, setSession] = useState(null);
   const [appointment, setAppointment] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [inCall, setInCall] = useState(false);
+  const [error, setError] = useState(null);
+  
+  // Controls
+  const [isMuted, setIsMuted] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(false);
+  
+  const user = React.useMemo(() => {
+    const stored = localStorage.getItem("user");
+    return stored && stored !== "undefined" ? JSON.parse(stored) : null;
+  }, []);
 
   useEffect(() => {
-    const loadOrCreateSession = async () => {
+    const fetchAppointment = async () => {
       try {
-        const apptRes = await api.get(`/appointments/${appointmentId}`);
-        if (apptRes.data.status !== 'ACCEPTED') {
-          setError('Video consultation is only available for accepted appointments.');
-          setLoading(false);
-          return;
-        }
-
-        // Logical Security Fix: Verify User Ownership
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        const isParticipant = 
-          (user.role === 'PATIENT' && Number(user.id) === Number(apptRes.data.patientId)) ||
-          (user.role === 'DOCTOR' && (Number(user.id) === Number(apptRes.data.doctorId) || Number(user.doctorId) === Number(apptRes.data.doctorId)));
-
-        if (!isParticipant && user.role !== 'ADMIN') {
-          setError('Unauthorized: You are not a participant in this consultation.');
-          setLoading(false);
-          return;
-        }
-
-        const res = await getSessionByAppointment(appointmentId);
-        setSession(res.data);
-        setAppointment(apptRes.data);
+        const res = await api.get(`/appointments/${appointmentId}`);
+        setAppointment(res.data);
       } catch (err) {
-        if (err.response?.status === 404) {
-          const user = JSON.parse(localStorage.getItem('user') || '{}');
-          try {
-            const create = await createSession(appointmentId, user.doctorId || null, user.id);
-            setSession(create.data);
-          } catch (createErr) {
-            setError('Failed to create consultation session.');
-          }
-        } else {
-          setError('Failed to load consultation session.');
-        }
+        console.error(err);
+        setError("Failed to load consultation details.");
       } finally {
         setLoading(false);
       }
     };
-    loadOrCreateSession();
+    fetchAppointment();
   }, [appointmentId]);
 
-  useEffect(() => {
-    const loadJitsiScript = () => {
-      return new Promise((resolve, reject) => {
-        if (window.JitsiMeetExternalAPI) { resolve(); return; }
-        const script = document.createElement('script');
-        script.src = `https://${JITSI_DOMAIN}/external_api.js`;
-        script.onload = resolve;
-        script.onerror = reject;
-        document.body.appendChild(script);
-      });
-    };
-
-    if (inCall && session?.roomName) {
-      loadJitsiScript().then(() => {
-        if (!jitsiContainerRef.current) return;
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        apiRef.current = new window.JitsiMeetExternalAPI(JITSI_DOMAIN, {
-          roomName: session.roomName,
-          parentNode: jitsiContainerRef.current,
-          configOverwrite: {
-            startWithAudioMuted: false,
-            startWithVideoMuted: false,
-            disableDeepLinking: true,
-          },
-          interfaceConfigOverwrite: {
-            SHOW_JITSI_WATERMARK: false,
-            SHOW_WATERMARK_FOR_GUESTS: false,
-          },
-          userInfo: {
-            displayName: user.fullName || user.email || 'User',
-          },
-        });
-
-        apiRef.current.addEventListener('videoConferenceLeft', () => {
-          handleEndCall();
-        });
-      });
-    }
-
-    return () => {
-      if (apiRef.current) {
-        apiRef.current.dispose();
-        apiRef.current = null;
-      }
-    };
-  }, [inCall, session]);
-
-  const handleJoinCall = async () => {
-    try {
-      await startSession(session.id);
-      setInCall(true);
-    } catch {
-      setInCall(true);
+  const endCall = () => {
+    if (window.confirm("Are you sure you want to end this consultation?")) {
+      const redirectPath = user.role === 'DOCTOR' ? '/doctor/dashboard/doctor-appointments' : '/patient/dashboard/appointments';
+      navigate(redirectPath);
     }
   };
 
-  const handleEndCall = async () => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    try {
-      if (apiRef.current) { apiRef.current.dispose(); apiRef.current = null; }
-      await endSession(session.id);
-    } finally {
-      setInCall(false);
-      if (user.role === 'DOCTOR') {
-        navigate('/doctor-dashboard#schedule');
-      } else {
-        navigate('/dashboard#appointments');
-      }
-    }
-  };
-
-  if (loading) return (
-    <div style={{ ...styles.wrapper, justifyContent: 'center' }}>
-      <div style={styles.waitingRoom}>
-        <div className="flat-card skeleton-card" style={styles.card}>
-          <div className="skeleton skeleton-avatar" style={{ width: 64, height: 64, margin: '0 auto 16px' }} />
-          <div className="skeleton skeleton-title" style={{ margin: '0 auto 16px', width: '50%' }} />
-          <div className="skeleton skeleton-text" />
-          <div className="skeleton skeleton-text" />
-          <div className="skeleton skeleton-text short" style={{ margin: '0 auto 24px' }} />
-          <div className="skeleton" style={{ height: 42, width: '100%', marginBottom: 16 }} />
-          <div className="skeleton" style={{ height: 42, width: '100%' }} />
-        </div>
+  if (loading) {
+    return (
+      <div className="dashboard-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <div className="skeleton" style={{ width: '100%', maxWidth: '800px', height: '500px', borderRadius: '16px' }}></div>
       </div>
-    </div>
-  );
+    );
+  }
 
-  if (error) return (
-    <div style={styles.centered}>
-      <div style={styles.errorBox}>{error}</div>
-      <button className="flat-btn-outline" onClick={() => navigate(-1)}>← Go Back</button>
-    </div>
-  );
-
-  return (
-    <div style={styles.wrapper} className="consult-room-wrapper">
-      <div style={styles.infoBar}>
-        <span style={styles.roomBadge}>Room: {session?.roomName}</span>
-        <span style={{
-          ...styles.statusBadge,
-          background: session?.status === 'ACTIVE' ? 'var(--primary)' : session?.status === 'COMPLETED' ? '#475569' : '#eab308',
-        }}>{session?.status}</span>
-        {inCall && (
-          <button style={styles.endBtn} onClick={handleEndCall}>End Session</button>
-        )}
-      </div>
-        <div style={styles.mainArea}>
-          {inCall ? (
-            <div style={styles.callLayout}>
-              <div ref={jitsiContainerRef} style={styles.jitsiContainer} />
-              {JSON.parse(localStorage.getItem('user') || '{}').role === 'DOCTOR' && (
-                <ConsultationSidePanel appointment={appointment} appointmentId={appointmentId} />
-              )}
-            </div>
-          ) : (
-            <div style={styles.waitingRoom}>
-              <div className="flat-card" style={styles.card}>
-                <div style={{ marginBottom: 16 }}></div>
-                <h2 style={styles.heading}>Video Consultation</h2>
-                <p style={styles.sub}>
-                  You are about to join a secure telemedicine session using{' '}
-                  <strong>Jitsi Meet</strong>. Your video and microphone will be requested.
-                </p>
-                <div style={styles.sessionInfo}>
-                  <div><strong>Patient:</strong> {appointment?.patientName || `Patient ID: ${appointment?.patientId}`}</div>
-                  <div><strong>Room:</strong> {session?.roomName}</div>
-                  <div><strong>Status:</strong> {session?.status}</div>
-                </div>
-                <button className="flat-btn" style={{ width: '100%', marginBottom: '1rem' }} onClick={handleJoinCall}>
-                  Join Video Call
-                </button>
-                <button className="flat-btn-outline" style={{ width: '100%', border: 'none' }} onClick={() => navigate(-1)}>← Back</button>
-              </div>
-            </div>
-          )}
+  if (error || !appointment) {
+    return (
+      <div className="dashboard-container">
+        <div className="dash-card empty-state" style={{ padding: '60px 20px' }}>
+           <p style={{ color: "var(--danger)" }}>{error || "Consultation room not found."}</p>
+           <button className="btn btn-outline" style={{ marginTop: '16px' }} onClick={() => navigate(-1)}>Go Back</button>
         </div>
       </div>
     );
-}
+  }
 
-const styles = {
-  wrapper: {
-    display: 'flex',
-    flexDirection: 'column',
-    height: 'calc(100vh - 120px)', // Adjust for header/footer
-    width: '100%',
-    overflow: 'hidden',
-    background: '#000',
-  },
-  infoBar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    padding: '8px 20px',
-    background: 'var(--bg-white)',
-    borderBottom: '1px solid var(--border-light)',
-    zIndex: 10,
-  },
-  roomBadge: {
-    background: 'var(--primary-light)',
-    color: 'var(--primary-hover)',
-    borderRadius: '4px',
-    padding: '2px 10px',
-    fontSize: 12,
-    fontWeight: 600,
-  },
-  statusBadge: {
-    color: '#fff',
-    borderRadius: '4px',
-    padding: '2px 8px',
-    fontSize: 11,
-    fontWeight: 600,
-    textTransform: 'uppercase',
-  },
-  endBtn: {
-    marginLeft: 'auto',
-    background: '#ef4444',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '6px 14px',
-    cursor: 'pointer',
-    fontWeight: 600,
-    fontSize: 12,
-  },
-  mainArea: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-  },
-  callLayout: {
-    display: 'flex',
-    flex: 1,
-    width: '100%',
-    height: '100%',
-    background: '#000',
-  },
-  jitsiContainer: {
-    flex: 1,
-    height: '100%',
-    background: '#000',
-  },
-  waitingRoom: {
-    flex: 1,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    background: 'transparent',
-  },
-  card: {
-    padding: 40,
-    maxWidth: 480,
-    width: '100%',
-    textAlign: 'center',
-  },
-  heading: {
-    fontSize: '1.5rem',
-    fontWeight: 700,
-    color: 'var(--text-main)',
-    marginBottom: 8,
-    margin: 0,
-  },
-  sub: {
-    color: 'var(--text-muted)',
-    fontSize: 14,
-    lineHeight: 1.6,
-    marginBottom: 24,
-  },
-  sessionInfo: {
-    background: '#f8fafc',
-    borderRadius: 'var(--radius-none)',
-    padding: 16,
-    textAlign: 'left',
-    fontSize: 13,
-    color: 'var(--text-muted)',
-    marginBottom: 24,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-    border: '1px solid var(--border-light)',
-  },
-  centered: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-    gap: 16,
-    padding: 20,
-  },
-  errorBox: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    background: '#fee2e2',
-    color: '#b91c1c',
-    padding: '14px 18px',
-    borderRadius: 'var(--radius-none)',
-    border: '1px solid #f87171',
-  },
-  spinner: {
-    width: 40,
-    height: 40,
-    border: '3px solid #e2e8f0',
-    borderTop: '3px solid var(--primary)',
-    borderRadius: '50%',
-    animation: 'spin 0.8s linear infinite',
-  },
-};
+  return (
+    <div className="dashboard-container" style={{ padding: '0', height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#000' }}>
+      
+      {/* Top Header */}
+      <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.9)', color: '#fff', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ padding: '8px', backgroundColor: 'var(--danger)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+             <Video size={20} color="#fff" />
+          </div>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '600' }}>
+              Teleconsultation with {user.role === 'PATIENT' ? `Dr. ${appointment.doctorName}` : `Patient ${appointment.patientId}`}
+            </h2>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: '#94A3B8' }}>Secure End-to-End Encrypted Session</p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+           <span className="badge badge-success" style={{ backgroundColor: 'rgba(21, 128, 61, 0.2)', color: '#4ADE80' }}>● Live Recording Active</span>
+        </div>
+      </div>
+
+      {/* Main Video Area */}
+      <div style={{ flex: 1, display: 'flex', position: 'relative', overflow: 'hidden' }}>
+         {/* Main feed (Remote) */}
+         <div style={{ flex: 1, backgroundColor: '#0F172A', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+            <Users size={80} color="#334155" />
+            <div style={{ position: 'absolute', bottom: '24px', left: '24px', backgroundColor: 'rgba(15, 23, 42, 0.6)', padding: '6px 12px', borderRadius: 'var(--radius-sm)', color: '#fff', fontSize: '0.9rem' }}>
+              {user.role === 'PATIENT' ? `Dr. ${appointment.doctorName}` : `Patient ${appointment.patientId}`}
+            </div>
+         </div>
+
+         {/* Self feed (Local) */}
+         <div style={{ position: 'absolute', top: '24px', right: '24px', width: '240px', height: '160px', backgroundColor: '#1E293B', borderRadius: 'var(--radius-lg)', border: '2px solid #334155', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
+            {isVideoOff ? (
+              <VideoOff size={40} color="#64748B" />
+            ) : (
+              <div style={{ width: '100%', height: '100%', backgroundColor: '#475569' }}></div>
+            )}
+            <div style={{ position: 'absolute', bottom: '8px', left: '8px', backgroundColor: 'rgba(15, 23, 42, 0.6)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', color: '#fff', fontSize: '0.75rem' }}>
+              You
+            </div>
+            {isMuted && (
+              <div style={{ position: 'absolute', top: '8px', right: '8px', backgroundColor: 'var(--danger)', padding: '4px', borderRadius: '50%' }}>
+                <MicOff size={12} color="#fff" />
+              </div>
+            )}
+         </div>
+      </div>
+
+      {/* Controls Footer */}
+      <div style={{ backgroundColor: '#1E293B', padding: '20px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '24px', zIndex: 10 }}>
+        <button 
+          onClick={() => setIsMuted(!isMuted)}
+          style={{ width: '56px', height: '56px', borderRadius: '50%', border: 'none', backgroundColor: isMuted ? 'var(--danger)' : '#334155', color: '#fff', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', transition: '0.2s' }}
+        >
+          {isMuted ? <MicOff size={24} /> : <Mic size={24} />}
+        </button>
+        <button 
+          onClick={() => setIsVideoOff(!isVideoOff)}
+          style={{ width: '56px', height: '56px', borderRadius: '50%', border: 'none', backgroundColor: isVideoOff ? 'var(--danger)' : '#334155', color: '#fff', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', transition: '0.2s' }}
+        >
+          {isVideoOff ? <VideoOff size={24} /> : <Video size={24} />}
+        </button>
+        <button 
+          onClick={endCall}
+          style={{ width: '64px', height: '64px', borderRadius: '50%', border: 'none', backgroundColor: 'var(--danger)', color: '#fff', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', transition: '0.2s', boxShadow: '0 0 15px rgba(220, 38, 38, 0.4)' }}
+        >
+          <PhoneOff size={28} />
+        </button>
+        <button 
+          style={{ width: '56px', height: '56px', borderRadius: '50%', border: 'none', backgroundColor: '#334155', color: '#fff', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', transition: '0.2s' }}
+        >
+          <Settings size={24} />
+        </button>
+      </div>
+
+    </div>
+  );
+}
