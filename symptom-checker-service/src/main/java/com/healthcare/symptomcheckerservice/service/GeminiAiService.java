@@ -20,7 +20,7 @@ public class GeminiAiService {
 
     public SymptomCheckResponse analyzeSymptoms(List<String> symptoms) {
         if (apiKey == null || apiKey.isEmpty() || apiKey.equals("your-gemini-api-key-placeholder")) {
-            return getMockAnalysis(symptoms);
+            return buildUnavailableResponse(symptoms);
         }
 
         try {
@@ -55,7 +55,7 @@ public class GeminiAiService {
             System.err.println("Gemini API call failed: " + e.getMessage());
         }
 
-        return getMockAnalysis(symptoms);
+        return buildUnavailableResponse(symptoms);
     }
 
     private SymptomCheckResponse parseGeminiResponse(Map responseBody, List<String> originalSymptoms) {
@@ -78,46 +78,16 @@ public class GeminiAiService {
             return res;
 
         } catch (Exception e) {
-            return getMockAnalysis(originalSymptoms);
+            return buildUnavailableResponse(originalSymptoms);
         }
     }
 
-    private SymptomCheckResponse getMockAnalysis(List<String> input) {
-        String risk = "Low";
-        String recommendation = "Your symptoms appear manageable. Ensure adequate rest and hydration.";
-        List<String> conditions = new ArrayList<>();
-
-        boolean matchesHigh = false;
-        boolean matchesMed = false;
-
-        for (String s : input) {
-            String sym = s.toLowerCase();
-            if (sym.contains("chest pain") || sym.contains("breath") || sym.contains("heart") || sym.contains("stroke")) {
-                matchesHigh = true;
-            } else if (sym.contains("fever") || sym.contains("cough") || sym.contains("pain") || sym.contains("dizzy")) {
-                matchesMed = true;
-            }
-        }
-
-        if (matchesHigh) {
-            risk = "High";
-            recommendation = "URGENT: Please seek immediate medical attention or visit the nearest emergency room.";
-            conditions.add("Potential Cardiac Issue");
-            conditions.add("Respiratory Distress");
-        } else if (matchesMed) {
-            risk = "Medium";
-            recommendation = "We recommend scheduling an appointment with a specialist soon to investigate these symptoms further.";
-            conditions.add("Common Cold / Flu");
-            conditions.add("Viral Infection");
-        } else {
-            conditions.add("Minor Fatigue");
-            conditions.add("General Malaise");
-        }
-
+    private SymptomCheckResponse buildUnavailableResponse(List<String> input) {
         SymptomCheckResponse res = new SymptomCheckResponse();
-        res.setSeverity(risk);
-        res.setAiSuggestion(recommendation);
-        res.setSymptoms(String.join(", ", conditions));
+        res.setSeverity("UNKNOWN");
+        res.setAiSuggestion("AI analysis is currently unavailable. Please consult a qualified medical professional for guidance.");
+        res.setSymptoms(String.join(", ", input));
+        res.setRecommendedSpecialty("General Medicine");
         return res;
     }
 }
