@@ -25,8 +25,13 @@ public class SecurityConfig {
         http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.OPTIONS, "/**")).permitAll()
+                .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/doctors", "/doctors/**").permitAll()
                         .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/doctors/*/profile-image")).permitAll()
+                .requestMatchers(HttpMethod.POST, "/doctors").hasAnyRole("DOCTOR", "ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/doctors/*").hasAnyRole("DOCTOR", "ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/doctors/*").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/doctors/*/upload-profile-pic").hasAnyRole("DOCTOR", "ADMIN")
                         .requestMatchers(new AntPathRequestMatcher("/error")).permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

@@ -83,7 +83,9 @@ public class DoctorServiceImpl implements DoctorService {
     @Override
     public DoctorResponse getDoctorByEmail(String email) {
         Doctor doctor = doctorRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Doctor not found with email: " + email));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND,
+                        "Doctor not found with email: " + email));
         return mapToResponse(doctor);
     }
 
