@@ -279,6 +279,9 @@ public class UserServiceImpl implements UserService {
         if (userRequest.getName() != null) existingUser.setName(userRequest.getName());
         if (userRequest.getEmail() != null) existingUser.setEmail(userRequest.getEmail());
         if (userRequest.getRole() != null) existingUser.setRole(userRequest.getRole());
+        if (userRequest.getPassword() != null && !userRequest.getPassword().trim().isEmpty()) {
+            existingUser.setPassword(passwordEncoder.encode(userRequest.getPassword()));
+        }
 
         // Profile completion fields
         if (userRequest.getMobileNumber() != null && !userRequest.getMobileNumber().equals(existingUser.getMobileNumber())) {
@@ -381,6 +384,10 @@ public class UserServiceImpl implements UserService {
             String email = payload.getEmail();
             String name = (String) payload.get("name");
             System.out.println("Google user verified: " + email + " / " + name);
+
+            if ("admin@gmail.com".equalsIgnoreCase(email) || "ADMIN".equalsIgnoreCase(role)) {
+                throw new RuntimeException("Google SSO is disabled for administrator accounts.");
+            }
 
             Optional<User> userOpt = userRepository.findByEmail(email);
             User user;

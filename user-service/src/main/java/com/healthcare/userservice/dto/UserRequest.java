@@ -59,4 +59,8 @@ public class UserRequest {
 
     public String getHospitalAttached() { return hospitalAttached; }
     public void setHospitalAttached(String hospitalAttached) { this.hospitalAttached = hospitalAttached; }
+
+    private String password;
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 }
