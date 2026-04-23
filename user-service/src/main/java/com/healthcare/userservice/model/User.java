@@ -65,6 +65,9 @@ public class User {
     @Column(name = "hospital_attached")
     private String hospitalAttached;
 
+    @Column(name = "availability")
+    private String availability;
+
     @Column(name = "profile_pic_url")
     private String profilePicUrl;
 
@@ -83,6 +86,9 @@ public class User {
 
     @Column(name = "suspended")
     private Boolean suspended = false;
+
+    @Column(name = "is_sso_user")
+    private Boolean isSsoUser = false;
 
     @Column(name = "suspension_reason")
     private String suspensionReason;
@@ -201,6 +207,9 @@ public class User {
     public String getHospitalAttached() { return hospitalAttached; }
     public void setHospitalAttached(String hospitalAttached) { this.hospitalAttached = hospitalAttached; }
 
+    public String getAvailability() { return availability; }
+    public void setAvailability(String availability) { this.availability = availability; }
+
     public String getProfilePicUrl() { return profilePicUrl; }
     public void setProfilePicUrl(String profilePicUrl) { this.profilePicUrl = profilePicUrl; }
 
@@ -227,4 +236,7 @@ public class User {
 
     public java.time.LocalDateTime getApprovedAt() { return approvedAt; }
     public void setApprovedAt(java.time.LocalDateTime approvedAt) { this.approvedAt = approvedAt; }
+
+    public Boolean getIsSsoUser() { return isSsoUser; }
+    public void setIsSsoUser(Boolean isSsoUser) { this.isSsoUser = isSsoUser; }
 }

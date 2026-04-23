@@ -30,6 +30,10 @@ public class MedicalReport {
     @Column(nullable = false)
     private String fileType;
 
+    private String title;
+
+    private String description;
+
     @JdbcType(BinaryJdbcType.class)
     @Column(nullable = false)
     private byte[] fileData;
@@ -45,11 +49,13 @@ public class MedicalReport {
     public MedicalReport() {
     }
 
-    public MedicalReport(Long id, Long userId, String fileName, String fileType, byte[] fileData, LocalDateTime uploadDate) {
+    public MedicalReport(Long id, Long userId, String fileName, String fileType, String title, String description, byte[] fileData, LocalDateTime uploadDate) {
         this.id = id;
         this.userId = userId;
         this.fileName = fileName;
         this.fileType = fileType;
+        this.title = title;
+        this.description = description;
         this.fileData = fileData;
         this.uploadDate = uploadDate;
     }
@@ -100,5 +106,21 @@ public class MedicalReport {
 
     public void setUploadDate(LocalDateTime uploadDate) {
         this.uploadDate = uploadDate;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 }

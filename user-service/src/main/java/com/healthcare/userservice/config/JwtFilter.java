@@ -1,5 +1,6 @@
 package com.healthcare.userservice.config;
 
+import com.healthcare.userservice.service.TokenBlacklistService;
 import com.healthcare.userservice.util.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -24,6 +25,9 @@ public class JwtFilter extends OncePerRequestFilter {
     @Autowired
     private CustomUserDetailsService userDetailsService;
 
+    @Autowired
+    private TokenBlacklistService tokenBlacklistService;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
@@ -39,10 +43,14 @@ public class JwtFilter extends OncePerRequestFilter {
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
+            if (tokenBlacklistService.isRevoked(token)) {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token has been revoked");
+                return;
+            }
             try {
                 email = jwtUtil.extractUsername(token);
             } catch (Exception e) {
-                System.out.println("Invalid token");
+                // Swallowed — request continues unauthenticated and will be rejected downstream if needed.
             }
         }
 
@@ -52,7 +60,6 @@ public class JwtFilter extends OncePerRequestFilter {
             if (jwtUtil.validateToken(token, userDetails)) {
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails,
                         null, userDetails.getAuthorities());
-
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }

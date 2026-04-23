@@ -62,10 +62,19 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private EmailService emailService;
 
+    @Autowired
+    private TokenBlacklistService tokenBlacklistService;
 
-
-    @Value("${google.client.id}")
+    @Value("${google.client.id:}")
     private String googleClientId;
+
+    private static final int MIN_PASSWORD_LENGTH = 8;
+
+    private void ensurePasswordStrength(String raw) {
+        if (raw == null || raw.length() < MIN_PASSWORD_LENGTH) {
+            throw new RuntimeException("Password must be at least " + MIN_PASSWORD_LENGTH + " characters long.");
+        }
+    }
 
     @EventListener(ApplicationReadyEvent.class)
     public void seedData() {
@@ -90,14 +99,11 @@ public class UserServiceImpl implements UserService {
             userRepository.save(admin);
             System.out.println("Permanent Master Admin Account seeded successfully.");
         } else {
-            // Fix: ensure the master admin's password and status are reset every startup for resilience
+            // Keep the master admin account unsuspended. Do not overwrite its stored hash on every boot.
             User admin = adminOpt.get();
-            String encodedPassword = passwordEncoder.encode("Admin@123");
-            admin.setPassword(encodedPassword);
             admin.setSuspended(false);
             admin.setSuspensionReason(null);
             userRepository.save(admin);
-            System.out.println("DEBUG: Master Admin Account reset and verified. Encoded: " + encodedPassword);
         }
     }
 
@@ -179,6 +185,8 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("Mobile Number already exists");
         }
 
+        ensurePasswordStrength(request.getPassword());
+
         User user = new User();
         user.setName(request.getName());
         user.setEmail(request.getEmail());
@@ -193,28 +201,19 @@ public class UserServiceImpl implements UserService {
         user.setSlmcNumber(request.getSlmcNumber());
         user.setSpecialization(request.getSpecialization());
         user.setHospitalAttached(request.getHospitalAttached());
+        user.setAvailability(request.getAvailability());
 
         User savedUser = userRepository.save(user);
 
-        String token = jwtUtil.generateToken(
-                new CustomUserDetails(savedUser),
-                savedUser.getRole().name(),
-                savedUser.getId());
+        CustomUserDetails details = new CustomUserDetails(savedUser);
+        String token = jwtUtil.generateToken(details, savedUser.getRole().name(), savedUser.getId());
+        String refresh = jwtUtil.generateRefreshToken(details, savedUser.getRole().name(), savedUser.getId());
 
-        return new AuthResponse(token, mapToResponse(savedUser));
+        return new AuthResponse(token, refresh, mapToResponse(savedUser));
     }
 
     @Override
     public AuthResponse loginUser(LoginRequest request) {
-        System.out.println("DEBUG: Attempting login for: " + request.getEmail());
-        Optional<User> dbUser = userRepository.findByEmail(request.getEmail());
-        if (dbUser.isPresent()) {
-            boolean matches = passwordEncoder.matches(request.getPassword(), dbUser.get().getPassword());
-            System.out.println("DEBUG: DB matches result: " + matches + " | Role in DB: " + dbUser.get().getRole());
-        } else {
-            System.out.println("DEBUG: User NOT found in DB: " + request.getEmail());
-        }
-
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
 
@@ -229,14 +228,9 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("Your account is pending administrator approval. Please try again later.");
         }
 
-        String token = jwtUtil.generateToken(
-                userDetails,
-                user.getRole().name(),
-                user.getId());
-
-        AuthResponse response = new AuthResponse(token, mapToResponse(user));
-        System.out.println("DEBUG: Login User: " + response.getUser().getName() + " with role " + response.getUser().getRole());
-        return response;
+        String token = jwtUtil.generateToken(userDetails, user.getRole().name(), user.getId());
+        String refresh = jwtUtil.generateRefreshToken(userDetails, user.getRole().name(), user.getId());
+        return new AuthResponse(token, refresh, mapToResponse(user));
     }
 
     @Override
@@ -263,6 +257,13 @@ public class UserServiceImpl implements UserService {
     public UserResponse getUserById(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + id));
+        return mapToResponse(user);
+    }
+
+    @Override
+    public UserResponse getUserByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
         return mapToResponse(user);
     }
 
@@ -302,6 +303,7 @@ public class UserServiceImpl implements UserService {
         if (userRequest.getSlmcNumber() != null) existingUser.setSlmcNumber(userRequest.getSlmcNumber());
         if (userRequest.getSpecialization() != null) existingUser.setSpecialization(userRequest.getSpecialization());
         if (userRequest.getHospitalAttached() != null) existingUser.setHospitalAttached(userRequest.getHospitalAttached());
+        if (userRequest.getAvailability() != null) existingUser.setAvailability(userRequest.getAvailability());
 
         User updatedUser = userRepository.save(existingUser);
         return mapToResponse(updatedUser);
@@ -333,16 +335,18 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void forgotPassword(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found with this email"));
+        // Silently succeed if the account does not exist — prevents user enumeration.
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        if (userOpt.isEmpty()) {
+            return;
+        }
+        User user = userOpt.get();
 
         String token = UUID.randomUUID().toString();
         user.setResetToken(token);
-        // Set expiry to 1 hour from now
         user.setResetTokenExpiry(Instant.now().plusSeconds(3600).toEpochMilli());
         userRepository.save(user);
 
-        // Send themed HTML password reset email
         String resetLink = "http://localhost:3000/reset-password?token=" + token;
         emailService.sendPasswordResetEmail(user.getEmail(), resetLink);
     }
@@ -356,6 +360,8 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("Password reset token has expired");
         }
 
+        ensurePasswordStrength(newPassword);
+
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setResetToken(null);
         user.setResetTokenExpiry(null);
@@ -363,27 +369,53 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public AuthResponse loginWithGoogle(String googleToken, String role) {
+    public AuthResponse refreshAccessToken(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new RuntimeException("Refresh token is required.");
+        }
+        if (tokenBlacklistService.isRevoked(refreshToken)) {
+            throw new RuntimeException("Refresh token has been revoked.");
+        }
+        String tokenType;
+        String email;
         try {
-            System.out.println("=== GOOGLE SSO DEBUG ===");
-            System.out.println("Google Client ID configured: [" + googleClientId + "]");
-            System.out.println("Token length: " + (googleToken != null ? googleToken.length() : "null"));
-            System.out.println("Role: " + role);
-            
+            tokenType = jwtUtil.extractTokenType(refreshToken);
+            email = jwtUtil.extractUsername(refreshToken);
+        } catch (Exception e) {
+            throw new RuntimeException("Invalid refresh token.");
+        }
+        if (!com.healthcare.userservice.util.JwtUtil.TOKEN_TYPE_REFRESH.equals(tokenType)) {
+            throw new RuntimeException("Provided token is not a refresh token.");
+        }
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found."));
+        CustomUserDetails details = new CustomUserDetails(user);
+        if (!jwtUtil.validateToken(refreshToken, details)) {
+            throw new RuntimeException("Refresh token is expired or invalid.");
+        }
+        String newAccess = jwtUtil.generateToken(details, user.getRole().name(), user.getId());
+        // Return the same refresh token; rotate only after elevated actions.
+        return new AuthResponse(newAccess, refreshToken, mapToResponse(user));
+    }
+
+    @Override
+    public AuthResponse loginWithGoogle(String googleToken, String role) {
+        if (googleClientId == null || googleClientId.isBlank()) {
+            throw new RuntimeException("Google Sign-In is not configured.");
+        }
+        try {
             GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), GsonFactory.getDefaultInstance())
                     .setAudience(Collections.singletonList(googleClientId.trim()))
                     .build();
 
             GoogleIdToken idToken = verifier.verify(googleToken);
             if (idToken == null) {
-                System.out.println("ERROR: idToken is null after verification - token rejected");
-                throw new RuntimeException("Invalid Google token - verification returned null");
+                throw new RuntimeException("Invalid Google token.");
             }
 
             Payload payload = idToken.getPayload();
             String email = payload.getEmail();
             String name = (String) payload.get("name");
-            System.out.println("Google user verified: " + email + " / " + name);
 
             if ("admin@gmail.com".equalsIgnoreCase(email) || "ADMIN".equalsIgnoreCase(role)) {
                 throw new RuntimeException("Google SSO is disabled for administrator accounts.");
@@ -395,38 +427,39 @@ public class UserServiceImpl implements UserService {
                 user = new User();
                 user.setEmail(email);
                 user.setName(name);
-                
-                // Map the role string to our enum
                 Role userRole = Role.PATIENT;
                 if (role != null) {
                     try {
                         userRole = Role.valueOf(role.toUpperCase());
                     } catch (Exception e) {
-                        // Keep default
+                        // keep default
                     }
                 }
                 user.setRole(userRole);
-                user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString())); // dummy
+                user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+                user.setIsSsoUser(true);
                 userRepository.save(user);
-                System.out.println("New user created: " + email + " with role " + userRole);
             } else {
                 user = userOpt.get();
-                System.out.println("Existing user found: " + email);
+                // Ensure existing users logging in via Google are also flagged as SSO users
+                if (user.getIsSsoUser() == null || !user.getIsSsoUser()) {
+                    user.setIsSsoUser(true);
+                    userRepository.save(user);
+                }
             }
 
             if (Boolean.TRUE.equals(user.getSuspended())) {
                 throw new RuntimeException("Your account has been suspended. Reason: " + user.getSuspensionReason());
             }
 
-            String jwt = jwtUtil.generateToken(new CustomUserDetails(user), user.getRole().name(), user.getId());
-            System.out.println("JWT generated successfully for: " + email);
-            return new AuthResponse(jwt, mapToResponse(user));
+            CustomUserDetails details = new CustomUserDetails(user);
+            String jwt = jwtUtil.generateToken(details, user.getRole().name(), user.getId());
+            String refresh = jwtUtil.generateRefreshToken(details, user.getRole().name(), user.getId());
+            return new AuthResponse(jwt, refresh, mapToResponse(user));
+        } catch (RuntimeException re) {
+            throw re;
         } catch (Exception e) {
-            System.out.println("=== GOOGLE SSO ERROR ===");
-            System.out.println("Error class: " + e.getClass().getName());
-            System.out.println("Error message: " + e.getMessage());
-            e.printStackTrace();
-            throw new RuntimeException("Failed to verify Google token: " + e.getMessage());
+            throw new RuntimeException("Failed to verify Google token.");
         }
     }
 
@@ -474,6 +507,7 @@ public class UserServiceImpl implements UserService {
         response.setSlmcNumber(user.getSlmcNumber());
         response.setSpecialization(user.getSpecialization());
         response.setHospitalAttached(user.getHospitalAttached());
+        response.setAvailability(user.getAvailability());
         if (user.getProfileImageData() != null) {
             response.setProfilePicUrl(user.getProfilePicUrl());
         } else {
@@ -483,6 +517,7 @@ public class UserServiceImpl implements UserService {
         response.setSuspended(Boolean.TRUE.equals(user.getSuspended()));
         response.setSuspensionReason(user.getSuspensionReason());
         response.setApproved(Boolean.TRUE.equals(user.getApproved()));
+        response.setIsSsoUser(Boolean.TRUE.equals(user.getIsSsoUser()));
 
         // Compute profile completeness based on role
         boolean complete = isNotEmpty(user.getNic()) && isNotEmpty(user.getMobileNumber());

@@ -6,18 +6,23 @@ import com.healthcare.userservice.dto.RegisterRequest;
 import com.healthcare.userservice.model.OtpToken;
 import com.healthcare.userservice.repo.OtpTokenRepository;
 import com.healthcare.userservice.service.EmailService;
+import com.healthcare.userservice.service.TokenBlacklistService;
 import com.healthcare.userservice.service.UserService;
+import com.healthcare.userservice.util.JwtUtil;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.SecureRandom;
 import java.util.Map;
-import java.util.Random;
 
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
+
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     @Autowired
     private UserService userService;
@@ -28,6 +33,12 @@ public class AuthController {
     @Autowired
     private EmailService emailService;
 
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    @Autowired
+    private TokenBlacklistService tokenBlacklistService;
+
     @PostMapping("/send-otp")
     @Transactional
     public ResponseEntity<?> sendOtp(@RequestBody Map<String, String> request) {
@@ -36,17 +47,11 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("message", "Email is required."));
         }
 
-        // Generate a 6-digit OTP
-        String otp = String.format("%06d", new Random().nextInt(999999));
+        String otp = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
 
-        // Remove any existing OTPs for this email
         otpTokenRepository.deleteByEmail(email);
+        otpTokenRepository.save(new OtpToken(email, otp, 5));
 
-        // Save the new OTP (5-minute TTL)
-        OtpToken otpToken = new OtpToken(email, otp, 5);
-        otpTokenRepository.save(otpToken);
-
-        // Send OTP via email
         try {
             emailService.sendOtpEmail(email, otp);
             return ResponseEntity.ok(Map.of("message", "OTP sent successfully to " + email));
@@ -78,35 +83,61 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.ok(userService.registerUser(request));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(userService.loginUser(request));
     }
 
     @PostMapping("/google")
     public ResponseEntity<AuthResponse> googleLogin(@RequestBody com.healthcare.userservice.dto.GoogleLoginRequest request) {
-        System.out.println("Processing Google login request for role: " + request.getRole());
         return ResponseEntity.ok(userService.loginWithGoogle(request.getToken(), request.getRole()));
     }
 
     @PostMapping("/forgot-password")
     public ResponseEntity<?> forgotPassword(@RequestParam String email) {
         userService.forgotPassword(email);
-        return ResponseEntity.ok("Password reset email sent (if an account with that email exists).");
+        // Generic response — never confirms or denies the email's existence.
+        return ResponseEntity.ok(Map.of("message", "If an account with that email exists, a reset link has been sent."));
     }
 
     @PostMapping("/reset-password")
     public ResponseEntity<?> resetPassword(@RequestParam String token, @RequestParam String newPassword) {
         userService.resetPassword(token, newPassword);
-        return ResponseEntity.ok("Password has been successfully reset.");
+        return ResponseEntity.ok(Map.of("message", "Password has been successfully reset."));
     }
 
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser() {
         return ResponseEntity.ok(userService.getCurrentUser());
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refresh(@RequestBody Map<String, String> body) {
+        String refreshToken = body.get("refreshToken");
+        return ResponseEntity.ok(userService.refreshAccessToken(refreshToken));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(@RequestHeader(value = "Authorization", required = false) String authHeader,
+                                    @RequestBody(required = false) Map<String, String> body) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            try {
+                tokenBlacklistService.revoke(token, jwtUtil.extractExpiration(token));
+            } catch (Exception ignored) {
+                // Invalid tokens can be ignored — they are already unusable.
+            }
+        }
+        if (body != null && body.get("refreshToken") != null) {
+            String rt = body.get("refreshToken");
+            try {
+                tokenBlacklistService.revoke(rt, jwtUtil.extractExpiration(rt));
+            } catch (Exception ignored) { }
+        }
+        return ResponseEntity.ok(Map.of("message", "Logged out successfully."));
     }
 }

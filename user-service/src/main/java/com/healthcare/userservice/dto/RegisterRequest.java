@@ -19,6 +19,7 @@ public class RegisterRequest {
     private String slmcNumber;
     private String specialization;
     private String hospitalAttached;
+    private String availability;
 
     public RegisterRequest() {
     }
@@ -85,4 +86,7 @@ public class RegisterRequest {
 
     public String getHospitalAttached() { return hospitalAttached; }
     public void setHospitalAttached(String hospitalAttached) { this.hospitalAttached = hospitalAttached; }
+
+    public String getAvailability() { return availability; }
+    public void setAvailability(String availability) { this.availability = availability; }
 }

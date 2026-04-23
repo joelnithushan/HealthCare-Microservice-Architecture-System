@@ -25,13 +25,17 @@ public class MedicalReportController {
     @PostMapping("/{userId}/reports")
     public ResponseEntity<MedicalReportResponse> uploadReport(
             @PathVariable Long userId,
-            @RequestParam("file") MultipartFile file) throws IOException {
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "description", required = false) String description) throws IOException {
 
         MedicalReport report = new MedicalReport();
         report.setUserId(userId);
         report.setFileName(file.getOriginalFilename());
         report.setFileType(file.getContentType());
         report.setFileData(file.getBytes());
+        report.setTitle(title != null && !title.isEmpty() ? title : file.getOriginalFilename());
+        report.setDescription(description);
 
         MedicalReport saved = medicalReportRepository.save(report);
         return new ResponseEntity<>(mapToResponse(saved), HttpStatus.CREATED);
@@ -71,6 +75,8 @@ public class MedicalReportController {
         response.setUserId(report.getUserId());
         response.setFileName(report.getFileName());
         response.setFileType(report.getFileType());
+        response.setTitle(report.getTitle());
+        response.setDescription(report.getDescription());
         response.setUploadDate(report.getUploadDate());
         return response;
     }

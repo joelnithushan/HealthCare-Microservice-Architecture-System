@@ -19,6 +19,8 @@ public interface UserService {
 
     UserResponse getUserById(Long id);
 
+    UserResponse getUserByEmail(String email);
+
     UserResponse updateUser(Long id, UserRequest userRequest);
 
     void deleteUser(Long id);
@@ -28,6 +30,8 @@ public interface UserService {
 
     AuthResponse loginWithGoogle(String googleToken, String role);
     UserResponse getCurrentUser();
+
+    AuthResponse refreshAccessToken(String refreshToken);
 
     UserResponse uploadProfilePic(Long id, org.springframework.web.multipart.MultipartFile file);
 
