@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/telemedicine/sessions")
+@RequestMapping("/telemedicine/sessions")
 @CrossOrigin(origins = "*")
 public class VideoSessionController {
 
