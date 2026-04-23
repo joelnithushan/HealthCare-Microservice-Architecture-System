@@ -1,60 +1,76 @@
 package com.healthcare.notificationservice.service;
 
-import com.twilio.Twilio;
-import com.twilio.rest.api.v2010.account.Message;
-import com.twilio.type.PhoneNumber;
-import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
 
 @Service
 public class SmsService {
 
-    @Value("${twilio.account.sid}")
-    private String accountSid;
+    private static final String NOTIFY_LK_URL = "https://app.notify.lk/api/v1/send";
 
-    @Value("${twilio.auth.token}")
-    private String authToken;
+    @Value("${notifylk.user_id:}")
+    private String userId;
 
-    @Value("${twilio.phone.number}")
-    private String fromPhoneNumber;
+    @Value("${notifylk.api_key:}")
+    private String apiKey;
 
-    private boolean twilioInitialized = false;
+    @Value("${notifylk.sender_id:NotifyDEMO}")
+    private String senderId;
 
-    @PostConstruct
-    public void init() {
+    private final RestTemplate restTemplate = new RestTemplate();
+
+    public boolean sendSms(String to, String messageBody) {
+        if (userId == null || userId.isBlank() || apiKey == null || apiKey.isBlank()) {
+            System.out.println("[SMS LOG - Notify.lk not configured] To: " + to + " | Message: " + messageBody);
+            return true;
+        }
+
+        String formattedNumber = formatSriLankanNumber(to);
+        if (formattedNumber == null) {
+            System.err.println("[SMS] Skipped: unable to format number " + to);
+            return false;
+        }
+
         try {
-            if (accountSid != null && !accountSid.equals("your-account-sid")
-                    && authToken != null && !authToken.equals("your-auth-token")) {
-                Twilio.init(accountSid, authToken);
-                twilioInitialized = true;
-                System.out.println("Twilio SMS service initialized successfully");
-            } else {
-                System.out.println("Twilio not configured - SMS will be logged only");
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+            MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+            body.add("user_id", userId);
+            body.add("api_key", apiKey);
+            body.add("sender_id", senderId);
+            body.add("to", formattedNumber);
+            body.add("message", messageBody);
+
+            HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(body, headers);
+            ResponseEntity<String> response = restTemplate.postForEntity(NOTIFY_LK_URL, entity, String.class);
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                System.out.println("[SMS] Sent via Notify.lk to " + formattedNumber);
+                return true;
             }
+            System.err.println("[SMS] Notify.lk responded: " + response.getStatusCode() + " body=" + response.getBody());
+            return false;
         } catch (Exception e) {
-            System.err.println("Failed to initialize Twilio: " + e.getMessage());
+            System.err.println("[SMS] Notify.lk send failed to " + formattedNumber + ": " + e.getMessage());
+            return false;
         }
     }
 
-    public boolean sendSms(String to, String messageBody) {
-        if (!twilioInitialized) {
-            System.out.println("[SMS LOG] To: " + to + " | Message: " + messageBody);
-            return true; // Return true so notification is still saved
-        }
-
-        try {
-            Message message = Message.creator(
-                    new PhoneNumber(to),
-                    new PhoneNumber(fromPhoneNumber),
-                    messageBody
-            ).create();
-
-            System.out.println("SMS sent successfully. SID: " + message.getSid());
-            return true;
-        } catch (Exception e) {
-            System.err.println("Failed to send SMS to " + to + ": " + e.getMessage());
-            return false;
-        }
+    private String formatSriLankanNumber(String raw) {
+        if (raw == null) return null;
+        String digits = raw.replaceAll("[^0-9]", "");
+        if (digits.isEmpty()) return null;
+        if (digits.startsWith("94")) return digits;
+        if (digits.startsWith("0")) return "94" + digits.substring(1);
+        if (digits.length() == 9) return "94" + digits;
+        return digits;
     }
 }

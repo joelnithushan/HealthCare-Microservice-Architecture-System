@@ -74,6 +74,13 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    public void markAllNotificationsAsRead(Long userId) {
+        List<Notification> unread = notificationRepository.findByUserIdAndStatus(userId, NotificationStatus.UNREAD);
+        unread.forEach(n -> n.setStatus(NotificationStatus.READ));
+        notificationRepository.saveAll(unread);
+    }
+
+    @Override
     public void deleteNotification(Long id) {
         Notification notification = notificationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Notification not found with ID: " + id));

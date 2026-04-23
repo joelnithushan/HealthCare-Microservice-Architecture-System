@@ -54,6 +54,13 @@ public class NotificationController {
         return ResponseEntity.ok(notificationService.markNotificationAsRead(id));
     }
 
+    @PutMapping("/user/{userId}/read-all")
+    public ResponseEntity<Void> markAllNotificationsAsRead(@PathVariable Long userId) {
+        validateUserScope(userId);
+        notificationService.markAllNotificationsAsRead(userId);
+        return ResponseEntity.ok().build();
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteNotification(@PathVariable Long id) {
         NotificationResponse notification = notificationService.getNotificationById(id);
