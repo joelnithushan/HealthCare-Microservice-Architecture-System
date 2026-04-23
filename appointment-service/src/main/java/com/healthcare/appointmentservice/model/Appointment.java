@@ -41,6 +41,9 @@ public class Appointment {
 
     private String notes;
 
+    @Column(columnDefinition = "boolean default false")
+    private Boolean reminderSent = false;
+
     public Appointment() {
     }
 
@@ -118,5 +121,13 @@ public class Appointment {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public Boolean getReminderSent() {
+        return reminderSent;
+    }
+
+    public void setReminderSent(Boolean reminderSent) {
+        this.reminderSent = reminderSent;
     }
 }

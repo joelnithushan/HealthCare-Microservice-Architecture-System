@@ -2,16 +2,21 @@ package com.healthcare.appointmentservice.service;
 
 import com.healthcare.appointmentservice.dto.AppointmentRequest;
 import com.healthcare.appointmentservice.dto.AppointmentResponse;
+import com.healthcare.appointmentservice.dto.DoctorContactResponse;
+import com.healthcare.appointmentservice.dto.UserContactResponse;
 import com.healthcare.appointmentservice.model.Appointment;
 import com.healthcare.appointmentservice.model.AppointmentStatus;
 import com.healthcare.appointmentservice.repo.AppointmentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,22 +28,29 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Autowired
     private NotificationIntegrationService notificationIntegrationService;
 
+    @Value("${user.service.base-url:http://localhost:8081}")
+    private String userServiceBaseUrl;
+
+    @Value("${doctor.service.base-url:http://localhost:8082}")
+    private String doctorServiceBaseUrl;
+
+    private final RestTemplate restTemplate = new RestTemplate();
+
+    private final java.util.List<AppointmentStatus> BUSY_STATUSES = java.util.Arrays.asList(
+            AppointmentStatus.PENDING_PAYMENT,
+            AppointmentStatus.PENDING,
+            AppointmentStatus.CONFIRMED
+    );
+
     @Override
     public AppointmentResponse createAppointment(AppointmentRequest request) {
-        // 1. Validate Date and Time (Prevent past bookings)
         LocalDate apptDate = request.getAppointmentDate();
         LocalTime apptTime = request.getAppointmentTime();
-        
-        if (apptDate.isBefore(LocalDate.now())) {
-            throw new RuntimeException("Cannot book appointments in the past.");
-        }
-        if (apptDate.isEqual(LocalDate.now()) && apptTime.isBefore(LocalTime.now())) {
-            throw new RuntimeException("Cannot book appointments for a past time today.");
-        }
 
-        // 2. Double-Booking Check (Collision Detection)
-        boolean isBusy = appointmentRepository.existsByDoctorIdAndAppointmentDateAndAppointmentTimeAndStatusNot(
-            request.getDoctorId(), apptDate, apptTime, AppointmentStatus.CANCELLED
+        validateDateTime(apptDate, apptTime);
+
+        boolean isBusy = appointmentRepository.existsByDoctorIdAndAppointmentDateAndAppointmentTimeAndStatusIn(
+                request.getDoctorId(), apptDate, apptTime, BUSY_STATUSES
         );
         if (isBusy) {
             throw new RuntimeException("The doctor is already booked for this specific time slot.");
@@ -58,10 +70,19 @@ public class AppointmentServiceImpl implements AppointmentService {
         return mapToResponse(saved);
     }
 
+    private void validateDateTime(LocalDate date, LocalTime time) {
+        if (date == null || time == null) return;
+        if (date.isBefore(LocalDate.now())) {
+            throw new RuntimeException("Cannot book or reschedule to a past date.");
+        }
+        if (date.isEqual(LocalDate.now()) && time.isBefore(LocalTime.now())) {
+            throw new RuntimeException("Cannot book or reschedule to a past time today.");
+        }
+    }
+
     @Override
     public List<AppointmentResponse> getAllAppointments() {
-        return appointmentRepository.findAll()
-                .stream()
+        return appointmentRepository.findAll().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -78,7 +99,6 @@ public class AppointmentServiceImpl implements AppointmentService {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Appointment not found with ID: " + id));
 
-        // Only PENDING or ACCEPTED appointments can be rescheduled
         if (appointment.getStatus() == AppointmentStatus.COMPLETED) {
             throw new RuntimeException("Cannot modify a completed appointment.");
         }
@@ -89,17 +109,24 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new RuntimeException("Cannot modify a rejected appointment.");
         }
 
-        // Validate new date/time
-        if (request.getAppointmentDate() != null) {
-            LocalDate newDate = request.getAppointmentDate();
-            if (newDate.isBefore(LocalDate.now())) {
-                throw new RuntimeException("Cannot reschedule to a past date.");
+        LocalDate newDate = request.getAppointmentDate() != null ? request.getAppointmentDate() : appointment.getAppointmentDate();
+        LocalTime newTime = request.getAppointmentTime() != null ? request.getAppointmentTime() : appointment.getAppointmentTime();
+
+        if (request.getAppointmentDate() != null || request.getAppointmentTime() != null) {
+            validateDateTime(newDate, newTime);
+            
+            // Check if rescheduled slot is busy (excluding the current appointment itself)
+            boolean isBusy = appointmentRepository.existsByDoctorIdAndAppointmentDateAndAppointmentTimeAndStatusIn(
+                    appointment.getDoctorId(), newDate, newTime, BUSY_STATUSES
+            );
+            if (isBusy && (!newDate.equals(appointment.getAppointmentDate()) || !newTime.equals(appointment.getAppointmentTime()))) {
+                throw new RuntimeException("The rescheduled time slot is already taken.");
             }
-            appointment.setAppointmentDate(request.getAppointmentDate());
+            
+            appointment.setAppointmentDate(newDate);
+            appointment.setAppointmentTime(newTime);
         }
-        if (request.getAppointmentTime() != null) {
-            appointment.setAppointmentTime(request.getAppointmentTime());
-        }
+
         if (request.getAppointmentType() != null && !request.getAppointmentType().isBlank()) {
             appointment.setAppointmentType(resolveAppointmentType(request.getAppointmentType()));
         }
@@ -119,7 +146,6 @@ public class AppointmentServiceImpl implements AppointmentService {
         AppointmentStatus newStatus = AppointmentStatus.valueOf(status);
         AppointmentStatus currentStatus = appointment.getStatus();
 
-        // 3. State Machine Logic (Basic Transition Rules)
         if (currentStatus == AppointmentStatus.CANCELLED) {
             throw new RuntimeException("Cannot update status of a cancelled appointment.");
         }
@@ -143,7 +169,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
 
         AppointmentStatus previousStatus = appointment.getStatus();
-        appointment.setStatus(AppointmentStatus.ACCEPTED);
+        appointment.setStatus(AppointmentStatus.CONFIRMED);
         Appointment updated = appointmentRepository.save(appointment);
         notificationIntegrationService.notifyStatusChanged(updated, previousStatus);
         return mapToResponse(updated);
@@ -167,17 +193,24 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Override
     public List<AppointmentResponse> getAppointmentsByPatientId(Long patientId) {
-        return appointmentRepository.findByPatientId(patientId)
-                .stream()
+        return appointmentRepository.findByPatientId(patientId).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<AppointmentResponse> getAppointmentsByDoctorId(Long doctorId) {
-        return appointmentRepository.findByDoctorId(doctorId)
-                .stream()
+        return appointmentRepository.findByDoctorId(doctorId).stream()
                 .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<LocalTime> getBookedSlots(Long doctorId, LocalDate date) {
+        return appointmentRepository
+                .findByDoctorIdAndAppointmentDateAndStatusIn(doctorId, date, BUSY_STATUSES)
+                .stream()
+                .map(Appointment::getAppointmentTime)
                 .collect(Collectors.toList());
     }
 
@@ -200,12 +233,58 @@ public class AppointmentServiceImpl implements AppointmentService {
         response.setAppointmentType(appointment.getAppointmentType());
         response.setStatus(appointment.getStatus().name());
         response.setNotes(appointment.getNotes());
+
+        DoctorContactResponse doctor = fetchDoctor(appointment.getDoctorId());
+        if (doctor != null) {
+            response.setDoctorName(doctor.getName());
+            response.setDoctorSpecialization(doctor.getSpecialization());
+            response.setDoctorHospital(doctor.getHospital());
+        }
+
+        UserContactResponse patient = fetchUser(appointment.getPatientId());
+        if (patient != null) {
+            response.setPatientName(patient.getName());
+        }
+
         return response;
+    }
+
+    private final Map<Long, DoctorContactResponse> doctorCache = new ConcurrentHashMap<>();
+    private final Map<Long, UserContactResponse> userCache = new ConcurrentHashMap<>();
+    private static final DoctorContactResponse DOCTOR_MISSING = new DoctorContactResponse();
+    private static final UserContactResponse USER_MISSING = new UserContactResponse();
+
+    private DoctorContactResponse fetchDoctor(Long doctorId) {
+        if (doctorId == null) return null;
+        DoctorContactResponse cached = doctorCache.computeIfAbsent(doctorId, id -> {
+            try {
+                DoctorContactResponse d = restTemplate.getForObject(
+                        doctorServiceBaseUrl + "/doctors/" + id, DoctorContactResponse.class);
+                return d != null ? d : DOCTOR_MISSING;
+            } catch (Exception ignored) {
+                return DOCTOR_MISSING;
+            }
+        });
+        return cached == DOCTOR_MISSING ? null : cached;
+    }
+
+    private UserContactResponse fetchUser(Long userId) {
+        if (userId == null) return null;
+        UserContactResponse cached = userCache.computeIfAbsent(userId, id -> {
+            try {
+                UserContactResponse u = restTemplate.getForObject(
+                        userServiceBaseUrl + "/users/" + id, UserContactResponse.class);
+                return u != null ? u : USER_MISSING;
+            } catch (Exception ignored) {
+                return USER_MISSING;
+            }
+        });
+        return cached == USER_MISSING ? null : cached;
     }
 
     private String resolveAppointmentType(String appointmentType) {
         if (appointmentType == null || appointmentType.isBlank()) {
-            return "IN_PERSON";
+            return "PHYSICAL";
         }
         return appointmentType;
     }

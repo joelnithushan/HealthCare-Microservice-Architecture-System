@@ -8,6 +8,10 @@ public class AppointmentResponse {
     private Long id;
     private Long patientId;
     private Long doctorId;
+    private String patientName;
+    private String doctorName;
+    private String doctorSpecialization;
+    private String doctorHospital;
     private LocalDate appointmentDate;
     private LocalTime appointmentTime;
     private String appointmentType;
@@ -17,79 +21,39 @@ public class AppointmentResponse {
     public AppointmentResponse() {
     }
 
-    public AppointmentResponse(Long id, Long patientId, Long doctorId, LocalDate appointmentDate,
-            LocalTime appointmentTime, String appointmentType, String status, String notes) {
-        this.id = id;
-        this.patientId = patientId;
-        this.doctorId = doctorId;
-        this.appointmentDate = appointmentDate;
-        this.appointmentTime = appointmentTime;
-        this.appointmentType = appointmentType;
-        this.status = status;
-        this.notes = notes;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public Long getId() {
-        return id;
-    }
+    public Long getPatientId() { return patientId; }
+    public void setPatientId(Long patientId) { this.patientId = patientId; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public Long getDoctorId() { return doctorId; }
+    public void setDoctorId(Long doctorId) { this.doctorId = doctorId; }
 
-    public Long getPatientId() {
-        return patientId;
-    }
+    public String getPatientName() { return patientName; }
+    public void setPatientName(String patientName) { this.patientName = patientName; }
 
-    public void setPatientId(Long patientId) {
-        this.patientId = patientId;
-    }
+    public String getDoctorName() { return doctorName; }
+    public void setDoctorName(String doctorName) { this.doctorName = doctorName; }
 
-    public Long getDoctorId() {
-        return doctorId;
-    }
+    public String getDoctorSpecialization() { return doctorSpecialization; }
+    public void setDoctorSpecialization(String doctorSpecialization) { this.doctorSpecialization = doctorSpecialization; }
 
-    public void setDoctorId(Long doctorId) {
-        this.doctorId = doctorId;
-    }
+    public String getDoctorHospital() { return doctorHospital; }
+    public void setDoctorHospital(String doctorHospital) { this.doctorHospital = doctorHospital; }
 
-    public LocalDate getAppointmentDate() {
-        return appointmentDate;
-    }
+    public LocalDate getAppointmentDate() { return appointmentDate; }
+    public void setAppointmentDate(LocalDate appointmentDate) { this.appointmentDate = appointmentDate; }
 
-    public void setAppointmentDate(LocalDate appointmentDate) {
-        this.appointmentDate = appointmentDate;
-    }
+    public LocalTime getAppointmentTime() { return appointmentTime; }
+    public void setAppointmentTime(LocalTime appointmentTime) { this.appointmentTime = appointmentTime; }
 
-    public LocalTime getAppointmentTime() {
-        return appointmentTime;
-    }
+    public String getAppointmentType() { return appointmentType; }
+    public void setAppointmentType(String appointmentType) { this.appointmentType = appointmentType; }
 
-    public void setAppointmentTime(LocalTime appointmentTime) {
-        this.appointmentTime = appointmentTime;
-    }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 
-    public String getAppointmentType() {
-        return appointmentType;
-    }
-
-    public void setAppointmentType(String appointmentType) {
-        this.appointmentType = appointmentType;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public String getNotes() {
-        return notes;
-    }
-
-    public void setNotes(String notes) {
-        this.notes = notes;
-    }
+    public String getNotes() { return notes; }
+    public void setNotes(String notes) { this.notes = notes; }
 }

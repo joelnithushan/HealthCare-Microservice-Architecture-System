@@ -13,7 +13,10 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.format.annotation.DateTimeFormat;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 @RestController
@@ -44,6 +47,13 @@ public class AppointmentController {
         return ResponseEntity.ok(appointmentService.getAllAppointments());
     }
 
+    @GetMapping("/booked-slots")
+    public ResponseEntity<List<LocalTime>> getBookedSlots(
+            @RequestParam Long doctorId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(appointmentService.getBookedSlots(doctorId, date));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<AppointmentResponse> getAppointmentById(@PathVariable Long id) {
         AppointmentResponse appointment = appointmentService.getAppointmentById(id);
@@ -63,10 +73,21 @@ public class AppointmentController {
     @GetMapping("/doctor/{doctorId}")
     public ResponseEntity<List<AppointmentResponse>> getAppointmentsByDoctorId(@PathVariable Long doctorId) {
         String role = getCurrentRole();
-        if ("DOCTOR".equals(role) && !doctorId.equals(getCurrentUserId())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Doctors can only view their own appointments.");
+        if ("ADMIN".equals(role)) {
+            return ResponseEntity.ok(appointmentService.getAppointmentsByDoctorId(doctorId));
         }
-        return ResponseEntity.ok(appointmentService.getAppointmentsByDoctorId(doctorId));
+        
+        if ("DOCTOR".equals(role)) {
+            // For doctors, we verify ownership based on their email. 
+            // We ignore the doctorId passed if it doesn't match their own profile.
+            // This handles the case where the frontend might pass a userId instead of a doctorProfileId.
+            Long myProfileId = getDoctorProfileIdForCurrentUser();
+            if (myProfileId != null) {
+                return ResponseEntity.ok(appointmentService.getAppointmentsByDoctorId(myProfileId));
+            }
+        }
+        
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not allowed to access these appointments.");
     }
 
     @PutMapping("/{id}")
@@ -80,9 +101,21 @@ public class AppointmentController {
     @PutMapping("/{id}/status")
     public ResponseEntity<AppointmentResponse> updateAppointmentStatus(@PathVariable Long id,
             @RequestBody java.util.Map<String, String> request) {
+        String newStatus = request.get("status");
         AppointmentResponse current = appointmentService.getAppointmentById(id);
-        validateDoctorOwnershipForMutation(current);
-        return ResponseEntity.ok(appointmentService.updateAppointmentStatus(id, request.get("status")));
+        
+        String role = getCurrentRole();
+        // Allow patient to set to PENDING (pending doctor approval) after payment
+        if ("PATIENT".equals(role) && "PENDING".equals(newStatus)) {
+            if (!current.getPatientId().equals(getCurrentUserId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only update your own appointments.");
+            }
+        } else {
+            // Otherwise, only doctor or admin can change status
+            validateDoctorOwnershipForMutation(current);
+        }
+        
+        return ResponseEntity.ok(appointmentService.updateAppointmentStatus(id, newStatus));
     }
 
     @PutMapping("/{id}/accept")
@@ -116,7 +149,7 @@ public class AppointmentController {
         if ("PATIENT".equals(role) && !appointment.getPatientId().equals(currentUserId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not allowed to access this appointment.");
         }
-        if ("DOCTOR".equals(role) && !appointment.getDoctorId().equals(currentUserId)) {
+        if ("DOCTOR".equals(role) && !isDoctorOwner(appointment.getDoctorId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not allowed to access this appointment.");
         }
     }
@@ -136,7 +169,7 @@ public class AppointmentController {
         if ("ADMIN".equals(role)) {
             return;
         }
-        if (!"DOCTOR".equals(role) || !appointment.getDoctorId().equals(getCurrentUserId())) {
+        if (!"DOCTOR".equals(role) || !isDoctorOwner(appointment.getDoctorId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the assigned doctor or admin can update this appointment status.");
         }
     }
@@ -166,5 +199,51 @@ public class AppointmentController {
         } catch (Exception ex) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid authorization token.");
         }
+    }
+
+    private String getCurrentUserEmail() {
+        String authHeader = httpServletRequest.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authorization token is missing.");
+        }
+        try {
+            return jwtUtil.extractUsername(authHeader.substring(7));
+        } catch (Exception ex) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid authorization token.");
+        }
+    }
+
+    private final org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+
+    @org.springframework.beans.factory.annotation.Value("${doctor.service.base-url:http://localhost:8082}")
+    private String doctorServiceBaseUrl;
+
+    private boolean isDoctorOwner(Long doctorProfileId) {
+        if (doctorProfileId == null) return false;
+        try {
+            String currentUserEmail = getCurrentUserEmail();
+            java.util.Map<String, Object> doctorProfile = restTemplate.getForObject(
+                    doctorServiceBaseUrl + "/doctors/" + doctorProfileId, java.util.Map.class);
+            if (doctorProfile != null && currentUserEmail.equals(doctorProfile.get("email"))) {
+                return true;
+            }
+        } catch (Exception e) {
+            // Ignore error and fall back to false
+        }
+        return false;
+    }
+
+    private Long getDoctorProfileIdForCurrentUser() {
+        try {
+            String currentUserEmail = getCurrentUserEmail();
+            java.util.Map<String, Object> doctorProfile = restTemplate.getForObject(
+                    doctorServiceBaseUrl + "/doctors/email/" + currentUserEmail, java.util.Map.class);
+            if (doctorProfile != null && doctorProfile.get("id") != null) {
+                return ((Number) doctorProfile.get("id")).longValue();
+            }
+        } catch (Exception e) {
+            // Log error
+        }
+        return null;
     }
 }

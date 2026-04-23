@@ -10,7 +10,12 @@ import java.util.List;
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
     List<Appointment> findByPatientId(Long patientId);
     List<Appointment> findByDoctorId(Long doctorId);
-    boolean existsByDoctorIdAndAppointmentDateAndAppointmentTimeAndStatusNot(
-        Long doctorId, LocalDate appointmentDate, LocalTime appointmentTime, com.healthcare.appointmentservice.model.AppointmentStatus status
+    boolean existsByDoctorIdAndAppointmentDateAndAppointmentTimeAndStatusIn(
+        Long doctorId, LocalDate appointmentDate, LocalTime appointmentTime, java.util.Collection<com.healthcare.appointmentservice.model.AppointmentStatus> statuses
     );
+    List<Appointment> findByDoctorIdAndAppointmentDateAndStatusIn(
+        Long doctorId, LocalDate appointmentDate, java.util.Collection<com.healthcare.appointmentservice.model.AppointmentStatus> statuses
+    );
+
+    List<Appointment> findByAppointmentDateAndStatusAndReminderSentFalse(LocalDate appointmentDate, com.healthcare.appointmentservice.model.AppointmentStatus status);
 }

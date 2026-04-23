@@ -3,6 +3,8 @@ package com.healthcare.appointmentservice.service;
 import com.healthcare.appointmentservice.dto.AppointmentRequest;
 import com.healthcare.appointmentservice.dto.AppointmentResponse;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 public interface AppointmentService {
@@ -26,4 +28,6 @@ public interface AppointmentService {
     List<AppointmentResponse> getAppointmentsByDoctorId(Long doctorId);
 
     void cancelAppointment(Long id);
+
+    List<LocalTime> getBookedSlots(Long doctorId, LocalDate date);
 }
