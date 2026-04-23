@@ -24,30 +24,62 @@ public class DoctorServiceImpl implements DoctorService {
     @jakarta.annotation.PostConstruct
     public void seedDoctorProfiles() {
         String[][] doctorData = {
-            {"Dr. Anura Perera", "anura@mediconnect.com", "Cardiologist", "0771234561", "Mon, Wed, Fri (9 AM - 12 PM)"},
-            {"Dr. Nilmini Gunawardena", "nilmini@mediconnect.com", "Pediatrician", "0771234562", "Tue, Thu (2 PM - 5 PM)"},
-            {"Dr. Rohan De Silva", "rohan@mediconnect.com", "Neurologist", "0771234563", "Mon, Sat (10 AM - 1 PM)"},
-            {"Dr. Priyantha Rathnayake", "priyantha@mediconnect.com", "Dermatologist", "0771234564", "Wed, Fri (4 PM - 7 PM)"},
-            {"Dr. Kumara Silva", "kumara@mediconnect.com", "Orthopedic Surgeon", "0771234565", "Tue, Fri (8 AM - 11 AM)"},
-            {"Dr. Sunil Fernando", "sunil@mediconnect.com", "ENT Surgeon", "0771234566", "Mon, Wed (3 PM - 6 PM)"},
-            {"Dr. Mahen Samarasinghe", "mahen@mediconnect.com", "Psychiatrist", "0771234567", "Sun (9 AM - 2 PM)"},
-            {"Dr. Lalith Abeysekara", "lalith@mediconnect.com", "General Practitioner", "0771234568", "Daily (6 PM - 9 PM)"},
-            {"Dr. Chamilka Fernando", "chamilka@mediconnect.com", "Ophthalmologist", "0771234569", "Mon, Thu (9 AM - 12 PM)"},
-            {"Dr. Nirosha Perera", "nirosha@mediconnect.com", "Obstetrician & Gynecologist", "0771234570", "Tue, Sat (10 AM - 4 PM)"}
+            {"Dr. Anura Perera", "anura@mediconnect.com", "Cardiologist", "0771234561", "Mon, Wed, Fri (9 AM - 12 PM)", "Asiri Central Hospital", "PHYSICAL,VIDEO"},
+            {"Dr. Nilmini Gunawardena", "nilmini@mediconnect.com", "Pediatrician", "0771234562", "Tue, Thu (2 PM - 5 PM)", "Nawaloka Hospital", "PHYSICAL,VIDEO"},
+            {"Dr. Rohan De Silva", "rohan@mediconnect.com", "Neurologist", "0771234563", "Mon, Sat (10 AM - 1 PM)", "Lanka Hospitals", "PHYSICAL"},
+            {"Dr. Priyantha Rathnayake", "priyantha@mediconnect.com", "Dermatologist", "0771234564", "Wed, Fri (4 PM - 7 PM)", "Durdans Hospital", "PHYSICAL,VIDEO"},
+            {"Dr. Kumara Silva", "kumara@mediconnect.com", "Orthopedic Surgeon", "0771234565", "Tue, Fri (8 AM - 11 AM)", "Asiri Central Hospital", "PHYSICAL"},
+            {"Dr. Sunil Fernando", "sunil@mediconnect.com", "ENT Surgeon", "0771234566", "Mon, Wed (3 PM - 6 PM)", "Nawaloka Hospital", "PHYSICAL,VIDEO"},
+            {"Dr. Mahen Samarasinghe", "mahen@mediconnect.com", "Psychiatrist", "0771234567", "Sun (9 AM - 2 PM)", "Lanka Hospitals", "VIDEO"},
+            {"Dr. Lalith Abeysekara", "lalith@mediconnect.com", "General Practitioner", "0771234568", "Daily (6 PM - 9 PM)", "Durdans Hospital", "PHYSICAL,VIDEO"},
+            {"Dr. Chamilka Fernando", "chamilka@mediconnect.com", "Ophthalmologist", "0771234569", "Mon, Thu (9 AM - 12 PM)", "Asiri Central Hospital", "PHYSICAL"},
+            {"Dr. Nirosha Perera", "nirosha@mediconnect.com", "Obstetrician & Gynecologist", "0771234570", "Tue, Sat (10 AM - 4 PM)", "Nawaloka Hospital", "PHYSICAL,VIDEO"}
         };
 
         for (String[] data : doctorData) {
-            if (doctorRepository.findByEmail(data[1]).isEmpty()) {
+            java.util.Optional<Doctor> existingOpt = doctorRepository.findByEmail(data[1]);
+            if (existingOpt.isEmpty()) {
                 Doctor doc = new Doctor();
                 doc.setName(data[0]);
                 doc.setEmail(data[1]);
                 doc.setSpecialization(data[2]);
                 doc.setPhone(data[3]);
                 doc.setAvailability(data[4]);
+                doc.setHospital(data[5]);
+                doc.setConsultationModes(data[6]);
                 doc.setVerified(true);
                 doc.setVerifiedAt(java.time.LocalDateTime.now());
                 doctorRepository.save(doc);
-                System.out.println("Seeded Doctor Profile: " + data[0]);
+            } else {
+                Doctor existing = existingOpt.get();
+                boolean dirty = false;
+                if (existing.getHospital() == null || existing.getHospital().isBlank()) {
+                    existing.setHospital(data[5]);
+                    dirty = true;
+                }
+                if (existing.getConsultationModes() == null || existing.getConsultationModes().isBlank()) {
+                    existing.setConsultationModes(data[6]);
+                    dirty = true;
+                }
+                if (dirty) {
+                    doctorRepository.save(existing);
+                }
+            }
+        }
+
+        // Backfill any doctor rows not covered by the seed list (e.g. self-registered)
+        for (Doctor d : doctorRepository.findAll()) {
+            boolean dirty = false;
+            if (d.getHospital() == null || d.getHospital().isBlank()) {
+                d.setHospital("MediConnect Central");
+                dirty = true;
+            }
+            if (d.getConsultationModes() == null || d.getConsultationModes().isBlank()) {
+                d.setConsultationModes("PHYSICAL,VIDEO");
+                dirty = true;
+            }
+            if (dirty) {
+                doctorRepository.save(d);
             }
         }
     }
@@ -60,6 +92,10 @@ public class DoctorServiceImpl implements DoctorService {
         doctor.setSpecialization(request.getSpecialization());
         doctor.setPhone(request.getPhone());
         doctor.setAvailability(request.getAvailability());
+        doctor.setHospital(request.getHospital() != null && !request.getHospital().isBlank()
+                ? request.getHospital() : "MediConnect Central");
+        doctor.setConsultationModes(request.getConsultationModes() != null && !request.getConsultationModes().isBlank()
+                ? request.getConsultationModes() : "PHYSICAL,VIDEO");
 
         Doctor saved = doctorRepository.save(doctor);
         return mapToResponse(saved);
@@ -99,6 +135,12 @@ public class DoctorServiceImpl implements DoctorService {
         doctor.setSpecialization(request.getSpecialization());
         doctor.setPhone(request.getPhone());
         doctor.setAvailability(request.getAvailability());
+        if (request.getHospital() != null) {
+            doctor.setHospital(request.getHospital());
+        }
+        if (request.getConsultationModes() != null && !request.getConsultationModes().isBlank()) {
+            doctor.setConsultationModes(request.getConsultationModes());
+        }
 
         Doctor updated = doctorRepository.save(doctor);
         return mapToResponse(updated);
@@ -192,6 +234,8 @@ public class DoctorServiceImpl implements DoctorService {
         response.setSpecialization(doctor.getSpecialization());
         response.setPhone(doctor.getPhone());
         response.setAvailability(doctor.getAvailability());
+        response.setHospital(doctor.getHospital());
+        response.setConsultationModes(doctor.getConsultationModes());
         response.setVerified(doctor.isVerified());
         if (doctor.getProfileImageData() != null) {
             response.setProfilePicUrl(doctor.getProfilePicUrl());

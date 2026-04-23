@@ -31,6 +31,11 @@ public class Doctor {
 
     private String availability;
 
+    private String hospital;
+
+    @Column(name = "consultation_modes")
+    private String consultationModes;
+
     @Column(nullable = false)
     private boolean verified = false;
 
@@ -104,6 +109,22 @@ public class Doctor {
 
     public void setAvailability(String availability) {
         this.availability = availability;
+    }
+
+    public String getHospital() {
+        return hospital;
+    }
+
+    public void setHospital(String hospital) {
+        this.hospital = hospital;
+    }
+
+    public String getConsultationModes() {
+        return consultationModes;
+    }
+
+    public void setConsultationModes(String consultationModes) {
+        this.consultationModes = consultationModes;
     }
 
     public boolean isVerified() {

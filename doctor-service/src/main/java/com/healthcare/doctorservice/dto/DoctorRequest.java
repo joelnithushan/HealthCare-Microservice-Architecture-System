@@ -7,6 +7,8 @@ public class DoctorRequest {
     private String specialization;
     private String phone;
     private String availability;
+    private String hospital;
+    private String consultationModes;
 
     public DoctorRequest() {
     }
@@ -17,6 +19,22 @@ public class DoctorRequest {
         this.specialization = specialization;
         this.phone = phone;
         this.availability = availability;
+    }
+
+    public String getHospital() {
+        return hospital;
+    }
+
+    public void setHospital(String hospital) {
+        this.hospital = hospital;
+    }
+
+    public String getConsultationModes() {
+        return consultationModes;
+    }
+
+    public void setConsultationModes(String consultationModes) {
+        this.consultationModes = consultationModes;
     }
 
     public String getName() {

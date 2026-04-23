@@ -8,6 +8,8 @@ public class DoctorResponse {
     private String specialization;
     private String phone;
     private String availability;
+    private String hospital;
+    private String consultationModes;
     private boolean verified;
     private String profilePicUrl;
 
@@ -70,6 +72,22 @@ public class DoctorResponse {
 
     public void setAvailability(String availability) {
         this.availability = availability;
+    }
+
+    public String getHospital() {
+        return hospital;
+    }
+
+    public void setHospital(String hospital) {
+        this.hospital = hospital;
+    }
+
+    public String getConsultationModes() {
+        return consultationModes;
+    }
+
+    public void setConsultationModes(String consultationModes) {
+        this.consultationModes = consultationModes;
     }
 
     public boolean isVerified() {
