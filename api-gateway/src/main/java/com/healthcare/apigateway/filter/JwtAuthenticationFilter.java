@@ -34,7 +34,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             "/api/v1/symptoms");
 
     public JwtAuthenticationFilter(@Value("${jwt.secret}") String secret) {
-        this.secretKey = Keys.hmacShaKeyFor(Base64.getDecoder().decode(secret));
+        this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     @Override

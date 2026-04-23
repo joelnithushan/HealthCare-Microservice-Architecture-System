@@ -106,6 +106,12 @@ spring:
             - Path=/api/sessions/**
           filters:
             - StripPrefix=1
+        - id: telemedicine-service-direct
+          uri: http://${TELEMEDICINE_SERVICE_HOST:localhost}:8086
+          predicates:
+            - Path=/api/telemedicine/**
+          filters:
+            - StripPrefix=1
 
         # Symptom Checker Service
         - id: symptom-checker-service-v1

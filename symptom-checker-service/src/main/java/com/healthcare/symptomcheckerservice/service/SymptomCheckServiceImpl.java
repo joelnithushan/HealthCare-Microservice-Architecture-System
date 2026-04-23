@@ -8,8 +8,8 @@ import com.healthcare.symptomcheckerservice.repo.SymptomCheckRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,21 +23,25 @@ public class SymptomCheckServiceImpl implements SymptomCheckService {
 
     @Override
     public SymptomCheckResponse checkSymptoms(SymptomCheckRequest request) {
-        // Call Gemini AI to analyze symptoms
-        // Converting String to List<String> for the analyzeSymptoms method
-        List<String> symptomsList = java.util.Arrays.asList(request.getSymptoms().split(","));
+        List<String> symptomsList = request.getSymptoms() != null ? request.getSymptoms() : Collections.emptyList();
+        String symptomsFlat = String.join(", ", symptomsList);
+
         SymptomCheckResponse aiResult = geminiAiService.analyzeSymptoms(symptomsList);
 
-        // Save the result to database
         SymptomCheck check = new SymptomCheck();
         check.setUserId(request.getUserId());
-        check.setSymptoms(request.getSymptoms().toString()); // Assuming symptoms is stored as a string or list
-        check.setAiResponse(aiResult.getAiSuggestion());
+        check.setSymptoms(symptomsFlat);
+        check.setAiResponse(aiResult.getRecommendation());
         check.setRecommendedSpecialty(aiResult.getRecommendedSpecialty());
-        check.setSeverity(aiResult.getSeverity());
+        check.setSeverity(aiResult.getUrgency());
 
         SymptomCheck saved = symptomCheckRepository.save(check);
-        return mapToResponse(saved);
+
+        SymptomCheckResponse response = mapToResponse(saved);
+        response.setPossibleConditions(aiResult.getPossibleConditions());
+        response.setRecommendation(aiResult.getRecommendation());
+        response.setUrgency(aiResult.getUrgency());
+        return response;
     }
 
     @Override
@@ -61,8 +65,10 @@ public class SymptomCheckServiceImpl implements SymptomCheckService {
         response.setUserId(check.getUserId());
         response.setSymptoms(check.getSymptoms());
         response.setAiSuggestion(check.getAiResponse());
+        response.setRecommendation(check.getAiResponse());
         response.setRecommendedSpecialty(check.getRecommendedSpecialty());
         response.setSeverity(check.getSeverity());
+        response.setUrgency(check.getSeverity());
         response.setCreatedAt(check.getCreatedAt());
         return response;
     }
