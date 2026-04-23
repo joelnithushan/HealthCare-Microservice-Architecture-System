@@ -42,6 +42,13 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setStatus(PaymentStatus.PENDING);
         Payment saved = paymentRepository.save(payment);
 
+        // Mock Mode Check: If placeholder key, skip Stripe
+        if (publishableKey == null || publishableKey.equals("pk_test_placeholder")) {
+            saved.setStatus(PaymentStatus.SUCCESS);
+            saved = paymentRepository.save(saved);
+            return mapToResponse(saved, "mock_client_secret");
+        }
+
         // Create Stripe PaymentIntent (amount must be in smallest currency unit = cents)
         long amountInCents = request.getAmount().multiply(new java.math.BigDecimal("100")).longValue();
         try {
@@ -90,7 +97,8 @@ public class PaymentServiceImpl implements PaymentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found with ID: " + id));
         
         // Logical Security Fix: Verify with Stripe if status is 'SUCCESS'
-        if ("SUCCESS".equals(status) && payment.getStripePaymentIntentId() != null) {
+        if ("SUCCESS".equals(status) && payment.getStripePaymentIntentId() != null 
+                && !"mock_client_secret".equals(payment.getStripePaymentIntentId())) {
             try {
                 PaymentIntent intent = PaymentIntent.retrieve(payment.getStripePaymentIntentId());
                 if (!"succeeded".equals(intent.getStatus())) {

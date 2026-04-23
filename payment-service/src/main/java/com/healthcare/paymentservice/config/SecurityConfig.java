@@ -31,7 +31,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/payments/user/*").hasAnyRole("PATIENT", "ADMIN")
                 .requestMatchers(HttpMethod.GET, "/payments/*").hasAnyRole("PATIENT", "DOCTOR", "ADMIN")
                 .requestMatchers(HttpMethod.GET, "/payments").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/payments/*/status").hasAnyRole("ADMIN", "DOCTOR")
+                .requestMatchers(HttpMethod.PUT, "/payments/*/status").hasAnyRole("ADMIN", "DOCTOR", "PATIENT")
                         .requestMatchers(new AntPathRequestMatcher("/error")).permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

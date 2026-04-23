@@ -3,11 +3,12 @@ package com.healthcare.paymentservice.util;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.WeakKeyException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
-import java.util.Base64;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.function.Function;
 
@@ -17,7 +18,11 @@ public class JwtUtil {
     private final SecretKey secretKey;
 
     public JwtUtil(@Value("${jwt.secret}") String secret) {
-        this.secretKey = Keys.hmacShaKeyFor(Base64.getDecoder().decode(secret));
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            throw new WeakKeyException("jwt.secret must be at least 32 bytes (256 bits). Got " + keyBytes.length + " bytes.");
+        }
+        this.secretKey = Keys.hmacShaKeyFor(keyBytes);
     }
 
     public String extractUsername(String token) {
