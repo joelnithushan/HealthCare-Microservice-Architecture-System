@@ -166,9 +166,6 @@ const styles = {
   input: {
     borderRadius: "8px",
   },
-  input: {
-    borderRadius: "8px",
-  },
   submitBtn: {
     width: "100%",
     padding: "14px",

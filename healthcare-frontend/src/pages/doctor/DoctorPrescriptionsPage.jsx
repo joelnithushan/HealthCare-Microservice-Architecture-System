@@ -22,6 +22,7 @@ export default function DoctorPrescriptionsPage() {
     { name: "", dosage: "", instructions: "" }
   ]);
   const [submitting, setSubmitting] = useState(false);
+  const [doctorProfileId, setDoctorProfileId] = useState(null);
 
   const user = React.useMemo(() => {
     const stored = localStorage.getItem("user");
@@ -31,10 +32,16 @@ export default function DoctorPrescriptionsPage() {
   const fetchPrescriptions = async () => {
     try {
       setLoading(true);
-      // For doctors, we might not have a specific doctor endpoint for prescriptions yet, so we fetch all and filter or assume there's one.
-      // Assuming GET /prescriptions/doctor/:id is valid based on typical REST, else we mock.
       try {
-        const res = await api.get(`/prescriptions/doctor/${user.id}`);
+        let doctorId = user.id;
+        try {
+          const dRes = await api.get(`/doctors/email/${encodeURIComponent(user.email)}`);
+          if (dRes.data && dRes.data.id) {
+            doctorId = dRes.data.id;
+            setDoctorProfileId(dRes.data.id);
+          }
+        } catch (e) { /* fallback */ }
+        const res = await api.get(`/prescriptions/doctor/${doctorId}`);
         setPrescriptions(res.data || []);
       } catch (e) {
          // Fallback mock if endpoint missing
@@ -77,16 +84,23 @@ export default function DoctorPrescriptionsPage() {
 
     try {
       setSubmitting(true);
-      const payload = {
-        patientId: formData.patientId,
-        doctorId: user.id,
-        doctorName: user.name,
-        date: new Date().toISOString(),
-        medicines: validMedicines,
-        notes: formData.notes
-      };
+      
+      const medsStr = validMedicines.map(m => m.name).join(", ");
+      const dosageStr = validMedicines.map(m => m.dosage).join(", ");
+      const instrStr = validMedicines.map(m => m.instructions || "-").join(", ");
+      const docId = doctorProfileId || user.id;
 
-      await api.post('/prescriptions', payload);
+      const fd = new FormData();
+      fd.append("patientId", formData.patientId);
+      fd.append("medication", medsStr);
+      fd.append("dosage", dosageStr);
+      fd.append("instructions", instrStr);
+      fd.append("notes", formData.notes || "");
+
+      // Send as multipart/form-data with doctorId query param
+      await api.post(`/prescriptions?doctorId=${docId}`, fd, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
       
       // Notify patient
       try {

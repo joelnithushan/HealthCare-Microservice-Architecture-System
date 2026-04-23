@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
-import { Calendar, Video, CreditCard, XCircle, Info } from "lucide-react";
+import { Calendar, Video, CreditCard, XCircle } from "lucide-react";
 import "../../components/DashboardShared.css";
 
 export default function PatientAppointmentsPage() {
@@ -55,7 +55,7 @@ export default function PatientAppointmentsPage() {
 
   const getFilteredAppointments = () => {
     if (filter === "ALL") return appointments;
-    if (filter === "UPCOMING") return appointments.filter(a => a.appointmentDate >= today && (a.status === 'PENDING' || a.status === 'ACCEPTED'));
+    if (filter === "UPCOMING") return appointments.filter(a => a.appointmentDate >= today && (a.status === 'PENDING_PAYMENT' || a.status === 'PENDING' || a.status === 'CONFIRMED'));
     if (filter === "COMPLETED") return appointments.filter(a => a.status === 'COMPLETED');
     return appointments.filter(a => a.status === filter);
   };
@@ -63,15 +63,15 @@ export default function PatientAppointmentsPage() {
   const getPaymentStatus = (apptId) => {
     const pay = payments.find(p => p.appointmentId === apptId);
     if (!pay) return "NO_RECORD";
-    return pay.status; // PENDING, COMPLETED, etc.
+    return pay.status; // PENDING, SUCCESS, FAILED
   };
 
   const getBadgeClass = (status) => {
     switch (status) {
-      case 'ACCEPTED': return 'badge-success';
+      case 'CONFIRMED': return 'badge-success';
       case 'COMPLETED': return 'badge-info';
       case 'CANCELLED': case 'REJECTED': return 'badge-danger';
-      case 'PENDING': default: return 'badge-pending';
+      case 'PENDING': case 'PENDING_PAYMENT': default: return 'badge-pending';
     }
   };
 
@@ -86,7 +86,7 @@ export default function PatientAppointmentsPage() {
 
       <div className="dash-card" style={{ marginBottom: "24px" }}>
         <div style={{ display: "flex", gap: "12px", borderBottom: "1px solid var(--border)", paddingBottom: "12px", overflowX: 'auto' }}>
-          {["UPCOMING", "PENDING", "ACCEPTED", "COMPLETED", "CANCELLED", "ALL"].map(f => (
+          {["UPCOMING", "PENDING_PAYMENT", "PENDING", "CONFIRMED", "COMPLETED", "CANCELLED", "ALL"].map(f => (
             <button 
               key={f}
               onClick={() => setFilter(f)}
@@ -147,25 +147,27 @@ export default function PatientAppointmentsPage() {
                       <td>
                         {payStatus === 'NO_RECORD' ? (
                            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Unpaid</span>
-                        ) : payStatus === 'COMPLETED' ? (
+                        ) : payStatus === 'SUCCESS' ? (
                            <span className="badge badge-success">Paid</span>
+                        ) : payStatus === 'FAILED' ? (
+                           <span className="badge badge-danger">Failed</span>
                         ) : (
                            <span className="badge badge-pending">{payStatus}</span>
                         )}
                       </td>
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                          {(payStatus === 'NO_RECORD' || payStatus === 'PENDING') && (a.status === 'PENDING' || a.status === 'ACCEPTED') && (
+                          {(payStatus === 'NO_RECORD' || payStatus === 'PENDING' || payStatus === 'FAILED') && a.status === 'PENDING_PAYMENT' && (
                             <button className="btn btn-primary" style={{ padding: '6px 10px', fontSize: '0.8rem' }} onClick={() => navigate(`/patient/dashboard/pay/${a.id}`)}>
                               <CreditCard size={14} /> Pay
                             </button>
                           )}
-                          {a.status === 'ACCEPTED' && a.appointmentType === 'VIDEO' && (
+                          {a.status === 'CONFIRMED' && (a.appointmentType === 'VIDEO' || a.appointmentType === 'VIDEO_CONSULTATION') && (
                             <button className="btn btn-success" style={{ padding: '6px 10px', fontSize: '0.8rem' }} onClick={() => navigate(`/patient/dashboard/consult/${a.id}`)}>
                               <Video size={14} /> Join
                             </button>
                           )}
-                          {(a.status === 'PENDING' || a.status === 'ACCEPTED') && (
+                          {(a.status === 'PENDING_PAYMENT' || a.status === 'PENDING' || a.status === 'CONFIRMED') && (
                             <button className="btn btn-outline" style={{ padding: '6px 10px', fontSize: '0.8rem', color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => handleCancelClick(a.id)}>
                               <XCircle size={14} /> Cancel
                             </button>

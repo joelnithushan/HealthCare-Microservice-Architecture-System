@@ -156,6 +156,7 @@ const DoctorOverview = () => {
             <div style={s.profileItem}><span style={s.profileLabel}>Specialization</span><span style={s.profileValue}>{user.specialization || 'N/A'}</span></div>
             <div style={s.profileItem}><span style={s.profileLabel}>Hospital</span><span style={s.profileValue}>{user.hospitalAttached || 'N/A'}</span></div>
             <div style={s.profileItem}><span style={s.profileLabel}>Mobile</span><span style={s.profileValue}>{user.mobileNumber || 'N/A'}</span></div>
+            <div style={s.profileItem}><span style={s.profileLabel}>Availability</span><span style={s.profileValue}>{user.availability || 'N/A'}</span></div>
             <div style={s.profileItem}><span style={s.profileLabel}>NIC</span><span style={s.profileValue}>{user.nic || 'N/A'}</span></div>
           </div>
         </div>

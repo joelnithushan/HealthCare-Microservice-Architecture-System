@@ -9,7 +9,7 @@ export default function DoctorAppointmentsPage() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [filter, setFilter] = useState("ACCEPTED"); // ACCEPTED (Confirmed), COMPLETED, ALL
+  const [filter, setFilter] = useState("CONFIRMED"); // CONFIRMED, ACCEPTED, COMPLETED, ALL
 
   const user = React.useMemo(() => {
     const stored = localStorage.getItem("user");
@@ -19,9 +19,16 @@ export default function DoctorAppointmentsPage() {
   useEffect(() => {
     const fetchAppointments = async () => {
       try {
-        const res = await api.get(`/appointments/doctor/${user.id}`);
-        // Only show ACCEPTED, COMPLETED OR CANCELLED (Exclude PENDING as they go to Requests tab)
-        const filtered = res.data.filter(a => a.status !== 'PENDING');
+        let doctorId = user.id;
+        try {
+          const dRes = await api.get(`/doctors/email/${encodeURIComponent(user.email)}`);
+          if (dRes.data && dRes.data.id) doctorId = dRes.data.id;
+        } catch (e) {
+          // fallback to user.id
+        }
+        const res = await api.get(`/appointments/doctor/${doctorId}`);
+        // Only show ACCEPTED/CONFIRMED/COMPLETED/CANCELLED (Exclude PENDING - those are in Requests tab)
+        const filtered = res.data.filter(a => a.status !== 'PENDING' && a.status !== 'PENDING_PAYMENT');
         filtered.sort((a, b) => new Date(b.appointmentDate) - new Date(a.appointmentDate));
         setAppointments(filtered);
       } catch (err) {
@@ -32,7 +39,7 @@ export default function DoctorAppointmentsPage() {
       }
     };
     fetchAppointments();
-  }, [user.id]);
+  }, [user.id, user.email]);
 
   const handleMarkCompleted = async (apptId) => {
     if (!window.confirm("Mark this appointment as COMPLETED?")) return;
@@ -61,7 +68,7 @@ export default function DoctorAppointmentsPage() {
 
   const getBadgeClass = (status) => {
     switch (status) {
-      case 'ACCEPTED': return 'badge-success';
+      case 'ACCEPTED': case 'CONFIRMED': return 'badge-success';
       case 'COMPLETED': return 'badge-info';
       case 'CANCELLED': case 'REJECTED': return 'badge-danger';
       default: return 'badge-pending';
@@ -79,7 +86,7 @@ export default function DoctorAppointmentsPage() {
 
       <div className="dash-card">
         <div style={{ display: "flex", gap: "12px", borderBottom: "1px solid var(--border)", paddingBottom: "12px", overflowX: 'auto' }}>
-          {["ACCEPTED", "COMPLETED", "ALL"].map(f => (
+          {["CONFIRMED", "ACCEPTED", "COMPLETED", "CANCELLED", "ALL"].map(f => (
             <button 
               key={f}
               onClick={() => setFilter(f)}
@@ -91,7 +98,7 @@ export default function DoctorAppointmentsPage() {
                 fontWeight: filter === f ? "600" : "500"
               }}
             >
-              {f === 'ACCEPTED' ? 'Confirmed' : f.charAt(0) + f.slice(1).toLowerCase()}
+              {f.charAt(0) + f.slice(1).toLowerCase()}
             </button>
           ))}
         </div>
@@ -111,7 +118,7 @@ export default function DoctorAppointmentsPage() {
               <thead>
                 <tr>
                   <th>Date & Time</th>
-                  <th>Patient ID</th>
+                  <th>Patient</th>
                   <th>Type</th>
                   <th>Status</th>
                   <th>Notes</th>
@@ -126,13 +133,13 @@ export default function DoctorAppointmentsPage() {
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{a.appointmentTime}</div>
                     </td>
                     <td>
-                      <div style={{ fontWeight: '500', color: 'var(--text-main)' }}>Patient {a.patientId}</div>
+                      <div style={{ fontWeight: '500', color: 'var(--text-main)' }}>{a.patientName || `Patient ${a.patientId}`}</div>
                     </td>
                     <td>
                       <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{a.appointmentType || 'PHYSICAL'}</span>
                     </td>
                     <td>
-                      <span className={`badge ${getBadgeClass(a.status)}`}>{a.status === 'ACCEPTED' ? 'CONFIRMED' : a.status}</span>
+                      <span className={`badge ${getBadgeClass(a.status)}`}>{a.status}</span>
                     </td>
                     <td style={{ maxWidth: "200px" }}>
                       <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -141,17 +148,17 @@ export default function DoctorAppointmentsPage() {
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                        {a.status === 'ACCEPTED' && a.appointmentType === 'VIDEO' && (
+                        {a.status === 'CONFIRMED' && (a.appointmentType === 'VIDEO' || a.appointmentType === 'VIDEO_CONSULTATION') && (
                           <button className="btn btn-primary" style={{ padding: '6px 10px', fontSize: '0.8rem' }} onClick={() => navigate(`/doctor/dashboard/consult/${a.id}`)}>
                             <Video size={14} /> Join
                           </button>
                         )}
-                        {a.status === 'ACCEPTED' && (
+                        {(a.status === 'ACCEPTED' || a.status === 'CONFIRMED') && (
                           <button className="btn btn-success" style={{ padding: '6px 10px', fontSize: '0.8rem' }} onClick={() => handleMarkCompleted(a.id)}>
                             <CheckCircle size={14} /> Complete
                           </button>
                         )}
-                        {a.status === 'ACCEPTED' && (
+                        {(a.status === 'ACCEPTED' || a.status === 'CONFIRMED') && (
                           <button className="btn btn-outline" style={{ padding: '6px 10px', fontSize: '0.8rem', color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => handleCancelClick(a.id)}>
                             <XCircle size={14} /> Cancel
                           </button>

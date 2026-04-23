@@ -23,10 +23,12 @@ const validatePatientFields = (d) => {
   if (dobErr) e.dob = dobErr;
   
   if (!d.gender) e.gender = 'Gender is required.';
-
-  if (!d.password) e.password = 'Password is required.';
-  else if (d.password.length < 8) e.password = 'Password must be at least 8 characters.';
-  else if (!/(?=.*[A-Z])(?=.*[0-9])/.test(d.password)) e.password = 'Password needs at least 1 uppercase and 1 number.';
+  
+  if (!d.isSsoUser) {
+    if (!d.password) e.password = 'Password is required.';
+    else if (d.password.length < 8) e.password = 'Password must be at least 8 characters.';
+    else if (!/(?=.*[A-Z])(?=.*[0-9])/.test(d.password)) e.password = 'Password needs at least 1 uppercase and 1 number.';
+  }
 
   return e;
 };
@@ -45,9 +47,11 @@ const validateDoctorFields = (d) => {
   if (!d.specialization || !d.specialization.trim()) e.specialization = 'Please select a specialization.';
   if (!d.hospitalAttached || !d.hospitalAttached.trim()) e.hospitalAttached = 'Please specify your primary hospital.';
 
-  if (!d.password) e.password = 'Password is required.';
-  else if (d.password.length < 8) e.password = 'Password must be at least 8 characters.';
-  else if (!/(?=.*[A-Z])(?=.*[0-9])/.test(d.password)) e.password = 'Password needs at least 1 uppercase and 1 number.';
+  if (!d.isSsoUser) {
+    if (!d.password) e.password = 'Password is required.';
+    else if (d.password.length < 8) e.password = 'Password must be at least 8 characters.';
+    else if (!/(?=.*[A-Z])(?=.*[0-9])/.test(d.password)) e.password = 'Password needs at least 1 uppercase and 1 number.';
+  }
 
   return e;
 };
@@ -58,7 +62,7 @@ export default function CompleteProfile() {
   const [formData, setFormData] = useState({
     nic: '', mobileNumber: '', dob: '', gender: '',
     slmcNumber: '', specialization: '', hospitalAttached: '',
-    district: '', password: '',
+    district: '', password: '', isSsoUser: false
   });
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -81,6 +85,7 @@ export default function CompleteProfile() {
         specialization: u.specialization || '',
         hospitalAttached: u.hospitalAttached || '',
         district: u.district || '',
+        isSsoUser: u.isSsoUser || false
       }));
     } else {
       navigate('/login');
@@ -153,6 +158,13 @@ export default function CompleteProfile() {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    toast.success('Logged out successfully');
+    navigate('/login');
+  };
+
   if (!user) return null;
 
   const isDoctor = user.role === 'DOCTOR';
@@ -185,9 +197,12 @@ export default function CompleteProfile() {
 
         {/* Right form panel */}
         <div style={styles.formPanel}>
-          <h2 style={styles.formTitle}>
-            {isDoctor ? 'Doctor Profile Details' : 'Patient Profile Details'}
-          </h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <h2 style={styles.formTitle}>
+              {isDoctor ? 'Doctor Profile Details' : 'Patient Profile Details'}
+            </h2>
+            <button onClick={handleLogout} style={styles.logoutBtn}>Logout</button>
+          </div>
           <p style={styles.formSub}>
             Fields marked with * are mandatory for {isDoctor ? 'doctors' : 'patients'} in Sri Lanka.
           </p>
@@ -278,32 +293,34 @@ export default function CompleteProfile() {
               </>
             )}
 
-            {/* Set Password Field */}
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Set Acccount Password *</label>
-              <div style={{ position: "relative" }}>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  className="flat-input"
-                  value={formData.password}
-                  onChange={handleChange}
-                  placeholder="Create a strong password"
-                  style={{ ...styles.input, paddingRight: "40px", ...(fieldErrors.password ? {borderColor:'red'} : {}) }}
-                />
-                <div onClick={togglePasswordVisibility} style={styles.eyeIconContainer}>
-                  {showPassword ? (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-                  ) : (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                  )}
+            {/* Set Password Field - Only for non-SSO users */}
+            {!formData.isSsoUser && (
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Set Acccount Password *</label>
+                <div style={{ position: "relative" }}>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    className="flat-input"
+                    value={formData.password}
+                    onChange={handleChange}
+                    placeholder="Create a strong password"
+                    style={{ ...styles.input, paddingRight: "40px", ...(fieldErrors.password ? {borderColor:'red'} : {}) }}
+                  />
+                  <div onClick={togglePasswordVisibility} style={styles.eyeIconContainer}>
+                    {showPassword ? (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                    ) : (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    )}
+                  </div>
                 </div>
+                {fieldErrors.password && <span style={styles.fieldError}>{fieldErrors.password}</span>}
+                <p style={{fontSize: '0.75rem', color: '#64748b', marginTop: '6px'}}>
+                  Please set a secure password so you can use standard email login next time.
+                </p>
               </div>
-              {fieldErrors.password && <span style={styles.fieldError}>{fieldErrors.password}</span>}
-              <p style={{fontSize: '0.75rem', color: '#64748b', marginTop: '6px'}}>
-                Please set a secure password so you can use standard email login next time.
-              </p>
-            </div>
+            )}
 
             <button type="submit" className="flat-btn" style={styles.submitBtn} disabled={loading}>
               {loading ? 'Saving...' : 'Complete Profile & Continue'}
@@ -452,5 +469,15 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  logoutBtn: {
+    background: 'none',
+    border: '1px solid var(--border)',
+    padding: '4px 12px',
+    borderRadius: '6px',
+    fontSize: '0.75rem',
+    color: 'var(--text-muted)',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
   },
 };

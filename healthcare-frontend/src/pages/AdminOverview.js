@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import api from "../services/api";
 import {
-  Users,
   UserCheck,
   ShieldCheck,
   CreditCard,
@@ -11,7 +10,8 @@ import {
   ArrowRight,
   Clock3,
   CircleDashed,
-  Wallet,
+  CalendarClock,
+  TrendingUp,
 } from "lucide-react";
 
 import "./AdminOverview.css";
@@ -25,6 +25,9 @@ const AdminOverview = () => {
     incomplete: 0,
     pendingDoctors: 0,
     appointments: 0,
+    appointmentsToday: 0,
+    appointmentsThisMonth: 0,
+    revenueThisMonth: 0,
   });
   const [paymentStats, setPaymentStats] = useState(null);
   const [recentAppointments, setRecentAppointments] = useState([]);
@@ -53,6 +56,42 @@ const AdminOverview = () => {
           (u) => u.role === "DOCTOR" && !u.approved,
         );
 
+        // Compute appointment stats
+        const allAppointments =
+          aptsRes.status === "fulfilled" ? aptsRes.value.data : [];
+        const today = new Date();
+        const todayStr = today.toISOString().slice(0, 10);
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+
+        const appointmentsToday = allAppointments.filter((a) => {
+          const d = a.appointmentDate;
+          if (!d) return false;
+          return d === todayStr || d.startsWith(todayStr);
+        }).length;
+
+        const appointmentsThisMonth = allAppointments.filter((a) => {
+          if (!a.appointmentDate) return false;
+          const d = new Date(a.appointmentDate);
+          return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        }).length;
+
+        // Compute revenue this month from payment records
+        const allPayments =
+          trxsRes.status === "fulfilled" ? trxsRes.value.data : [];
+        const revenueThisMonth = allPayments
+          .filter((p) => {
+            if (
+              p.status !== "SUCCESS" &&
+              p.status !== "COMPLETED"
+            )
+              return false;
+            if (!p.paymentDate) return false;
+            const d = new Date(p.paymentDate);
+            return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+          })
+          .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
         setSummary({
           total: users.length,
           patients: patients.length,
@@ -60,8 +99,10 @@ const AdminOverview = () => {
           admins: admins.length,
           incomplete: incomplete.length,
           pendingDoctors: pendingDoctorList.length,
-          appointments:
-            aptsRes.status === "fulfilled" ? aptsRes.value.data.length : 0,
+          appointments: allAppointments.length,
+          appointmentsToday,
+          appointmentsThisMonth,
+          revenueThisMonth,
         });
         setPendingDoctors(pendingDoctorList.slice(0, 4));
 
@@ -80,6 +121,9 @@ const AdminOverview = () => {
           incomplete: 0,
           pendingDoctors: 0,
           appointments: 0,
+          appointmentsToday: 0,
+          appointmentsThisMonth: 0,
+          revenueThisMonth: 0,
         });
         setPendingDoctors([]);
       } finally {
@@ -114,11 +158,11 @@ const AdminOverview = () => {
     <div className="admin-overview">
       <section className="admin-overview__stats">
         <StatCard
-          title="Total Users"
-          value={summary.total}
-          caption="Registered accounts"
-          icon={Users}
-          tone="teal"
+          title="Total Patients"
+          value={summary.patients}
+          caption="Registered patients"
+          icon={UserCheck}
+          tone="emerald"
         />
         <StatCard
           title="Total Doctors"
@@ -128,30 +172,30 @@ const AdminOverview = () => {
           tone="blue"
         />
         <StatCard
-          title="Total Patients"
-          value={summary.patients}
-          caption="Active patients"
-          icon={UserCheck}
-          tone="emerald"
-        />
-        <StatCard
-          title="Appointments"
-          value={summary.appointments}
-          caption="Booked records"
+          title="Appointments Today"
+          value={summary.appointmentsToday}
+          caption={new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}
           icon={CalendarDays}
           tone="amber"
         />
         <StatCard
-          title="Revenue"
-          value={`LKR ${revenueValue}`}
-          caption="Confirmed payments"
-          icon={Wallet}
+          title="This Month"
+          value={summary.appointmentsThisMonth}
+          caption={`Appointments in ${new Date().toLocaleDateString("en-US", { month: "long" })}`}
+          icon={CalendarClock}
+          tone="teal"
+        />
+        <StatCard
+          title="Revenue (Month)"
+          value={`LKR ${summary.revenueThisMonth.toLocaleString()}`}
+          caption={`${new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}`}
+          icon={TrendingUp}
           tone="green"
         />
         <StatCard
-          title="Pending Profiles"
-          value={summary.incomplete}
-          caption="Need completion"
+          title="Pending Doctors"
+          value={summary.pendingDoctors}
+          caption="Awaiting verification"
           icon={CircleDashed}
           tone="rose"
         />
@@ -261,19 +305,19 @@ const AdminOverview = () => {
 
           <div className="admin-health-list">
             <div className="admin-health-item">
+              <span>Total Users</span>
+              <strong>{summary.total}</strong>
+            </div>
+            <div className="admin-health-item">
               <span>Admins</span>
               <strong>{summary.admins}</strong>
             </div>
             <div className="admin-health-item">
-              <span>Profiles incomplete</span>
-              <strong>{summary.incomplete}</strong>
-            </div>
-            <div className="admin-health-item">
-              <span>Appointments</span>
+              <span>All Appointments</span>
               <strong>{summary.appointments}</strong>
             </div>
             <div className="admin-health-item">
-              <span>Revenue</span>
+              <span>Total Revenue</span>
               <strong>LKR {revenueValue}</strong>
             </div>
           </div>
@@ -293,7 +337,7 @@ const AdminOverview = () => {
             <div className="admin-list admin-list--dense">
               {topAppointments.map((appointment) => (
                 <article
-                  key={appointment.appointmentId}
+                  key={appointment.id}
                   className="admin-timeline-item"
                 >
                   <div className="admin-timeline-item__icon">
@@ -301,15 +345,15 @@ const AdminOverview = () => {
                   </div>
                   <div className="admin-timeline-item__body">
                     <div className="admin-timeline-item__title">
-                      Appointment #{appointment.appointmentId}
+                      Appointment #{appointment.id}
                     </div>
                     <div className="admin-timeline-item__meta">
-                      User {appointment.patientId} • Dr. {appointment.doctorId}
+                      {appointment.patientName || `Patient ${appointment.patientId}`} • {appointment.doctorName ? `Dr. ${appointment.doctorName}` : `Doctor ${appointment.doctorId}`}
                     </div>
                   </div>
                   <div className="admin-timeline-item__side">
                     <span
-                      className={`status-badge ${appointment.status?.toLowerCase() === "completed" || appointment.status?.toLowerCase() === "confirmed" ? "success" : "pending"}`}
+                      className={`status-badge ${appointment.status?.toLowerCase() === "completed" || appointment.status?.toLowerCase() === "confirmed" || appointment.status?.toLowerCase() === "accepted" ? "success" : "pending"}`}
                     >
                       {appointment.status || "PENDING"}
                     </span>

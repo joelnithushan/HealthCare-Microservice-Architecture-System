@@ -18,7 +18,7 @@ export default function PatientNotificationsPage() {
       setLoading(true);
       const res = await api.get(`/notifications/user/${user.id}`);
       const notifs = res.data || [];
-      notifs.sort((a, b) => new Date(b.date) - new Date(a.date));
+      // No need to sort manually if backend already sorts by createdAt desc
       setNotifications(notifs);
     } catch (err) {
       console.error(err);
@@ -36,7 +36,7 @@ export default function PatientNotificationsPage() {
   const handleMarkAsRead = async (id) => {
     try {
       await api.put(`/notifications/${id}/read`);
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, status: 'READ' } : n));
     } catch (err) {
       console.error(err);
     }
@@ -44,11 +44,8 @@ export default function PatientNotificationsPage() {
 
   const handleMarkAllAsRead = async () => {
     try {
-      const unread = notifications.filter(n => !n.read);
-      for (const n of unread) {
-        await api.put(`/notifications/${n.id}/read`);
-      }
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      await api.put(`/notifications/user/${user.id}/read-all`);
+      setNotifications(prev => prev.map(n => ({ ...n, status: 'READ' })));
     } catch (err) {
       console.error(err);
     }
@@ -70,7 +67,7 @@ export default function PatientNotificationsPage() {
           <h1>Notifications</h1>
           <p>Stay updated on your appointments, payments, and reports.</p>
         </div>
-        {notifications.some(n => !n.read) && (
+        {notifications.some(n => n.status === 'UNREAD') && (
           <button className="btn btn-outline" onClick={handleMarkAllAsRead}>
             Mark all as read
           </button>
@@ -89,43 +86,46 @@ export default function PatientNotificationsPage() {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            {notifications.map((notif) => (
-              <div key={notif.id} style={{ 
-                borderLeft: notif.read ? "4px solid transparent" : "4px solid var(--primary)",
-                backgroundColor: notif.read ? "transparent" : "#F8FAFC",
-                borderTop: "1px solid var(--border)",
-                borderRight: "1px solid var(--border)",
-                borderBottom: "1px solid var(--border)",
-                borderRadius: "0 var(--radius-md) var(--radius-md) 0",
-                padding: "16px",
-                display: "flex", 
-                justifyContent: "space-between", 
-                alignItems: "flex-start" 
-              }}>
-                <div style={{ display: "flex", gap: "12px" }}>
-                  <div style={{ color: notif.read ? "var(--text-muted)" : "var(--primary)", marginTop: "2px" }}>
-                    {notif.type === 'APPOINTMENT' ? <Bell size={18} /> : <Info size={18} />}
+            {notifications.map((notif) => {
+              const isUnread = notif.status === 'UNREAD';
+              return (
+                <div key={notif.id} style={{ 
+                  borderLeft: isUnread ? "4px solid var(--primary)" : "4px solid transparent",
+                  backgroundColor: isUnread ? "#F8FAFC" : "transparent",
+                  borderTop: "1px solid var(--border)",
+                  borderRight: "1px solid var(--border)",
+                  borderBottom: "1px solid var(--border)",
+                  borderRadius: "0 var(--radius-md) var(--radius-md) 0",
+                  padding: "16px",
+                  display: "flex", 
+                  justifyContent: "space-between", 
+                  alignItems: "flex-start" 
+                }}>
+                  <div style={{ display: "flex", gap: "12px" }}>
+                    <div style={{ color: isUnread ? "var(--primary)" : "var(--text-muted)", marginTop: "2px" }}>
+                      {notif.type === 'APPOINTMENT' ? <Bell size={18} /> : <Info size={18} />}
+                    </div>
+                    <div>
+                      <p style={{ margin: "0 0 6px", fontSize: "0.95rem", color: "var(--text-main)", fontWeight: isUnread ? "600" : "400" }}>{notif.message}</p>
+                      <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                        {notif.createdAt ? new Date(notif.createdAt.endsWith('Z') ? notif.createdAt : notif.createdAt + 'Z').toLocaleString() : 'Just now'}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <p style={{ margin: "0 0 6px", fontSize: "0.95rem", color: "var(--text-main)", fontWeight: notif.read ? "400" : "600" }}>{notif.message}</p>
-                    <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                      {new Date(notif.date).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-                
-                <div style={{ display: "flex", gap: "8px" }}>
-                  {!notif.read && (
-                    <button className="btn btn-outline" style={{ padding: "6px", border: "none" }} title="Mark as read" onClick={() => handleMarkAsRead(notif.id)}>
-                      <Check size={16} />
+                  
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    {isUnread && (
+                      <button className="btn btn-outline" style={{ padding: "6px", border: "none" }} title="Mark as read" onClick={() => handleMarkAsRead(notif.id)}>
+                        <Check size={16} />
+                      </button>
+                    )}
+                    <button className="btn btn-outline" style={{ padding: "6px", border: "none", color: "var(--danger)" }} title="Delete" onClick={() => handleDelete(notif.id)}>
+                      <Trash2 size={16} />
                     </button>
-                  )}
-                  <button className="btn btn-outline" style={{ padding: "6px", border: "none", color: "var(--danger)" }} title="Delete" onClick={() => handleDelete(notif.id)}>
-                    <Trash2 size={16} />
-                  </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

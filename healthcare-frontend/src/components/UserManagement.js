@@ -312,6 +312,27 @@ const UserManagement = () => {
           </div>
         </div>
 
+        {/* Result count */}
+        <div
+          style={{
+            padding: "10px 24px",
+            borderBottom: "1px solid var(--admin-border)",
+            fontSize: "13px",
+            color: "var(--admin-muted)",
+            fontWeight: 500,
+            background: "#FAFCFE",
+          }}
+        >
+          Showing <strong style={{ color: "var(--admin-text)" }}>{filtered.length}</strong> of{" "}
+          <strong style={{ color: "var(--admin-text)" }}>{users.length}</strong> users
+          {roleFilter !== "ALL" && (
+            <span> • Filtered by <strong style={{ color: "var(--admin-accent)" }}>{roleFilter}</strong></span>
+          )}
+          {search && (
+            <span> • Search: "<strong style={{ color: "var(--admin-accent)" }}>{search}</strong>"</span>
+          )}
+        </div>
+
         {/* Table */}
         <div style={{ overflowX: "auto" }}>
           <table

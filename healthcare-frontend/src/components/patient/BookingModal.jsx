@@ -42,7 +42,7 @@ const BookingModal = ({ isOpen, onClose, doctor, patientId, patientName, onBookS
         appointmentDate: form.date,
         appointmentTime: form.time,
         appointmentType: form.type,
-        status: 'PENDING'
+        status: 'PENDING_PAYMENT'
       };
 
       const res = await api.post('/appointments', payload);

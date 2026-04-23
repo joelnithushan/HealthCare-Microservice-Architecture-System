@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
-import { CheckCircle, FileText, Info } from "lucide-react";
+import { CheckCircle, FileText } from "lucide-react";
 import "../../components/DashboardShared.css";
 
 export default function PatientConsultationsPage() {

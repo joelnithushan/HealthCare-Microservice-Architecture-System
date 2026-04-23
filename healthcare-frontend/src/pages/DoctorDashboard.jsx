@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Navigate, Outlet } from "react-router-dom";
 import api from "../services/api";
@@ -11,7 +11,14 @@ const DoctorDashboard = () => {
 
   const token = localStorage.getItem("token");
   const stored = localStorage.getItem("user");
-  const user = stored && stored !== "undefined" ? JSON.parse(stored) : null;
+  const user = useMemo(() => {
+    if (!stored || stored === "undefined") return null;
+    try {
+      return JSON.parse(stored);
+    } catch {
+      return null;
+    }
+  }, [stored]);
 
   const fetchProfile = useCallback(async () => {
     if (!user?.email) {
@@ -31,7 +38,7 @@ const DoctorDashboard = () => {
             email: user.email,
             specialization: user.specialization || "General Physician",
             phone: user.mobileNumber,
-            availability: "Clinical schedule pending"
+            availability: "Clinical schedule pending",
           });
           setProfile(createRes.data);
           console.log("Medical profile auto-synchronized successfully");

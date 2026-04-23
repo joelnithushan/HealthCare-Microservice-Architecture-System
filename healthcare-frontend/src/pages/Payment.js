@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { CreditCard, CheckCircle, ShieldCheck } from "lucide-react";
+import toast from "react-hot-toast";
 import "../components/DashboardShared.css";
 
 export default function Payment() {
@@ -11,6 +12,7 @@ export default function Payment() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [paymentStatus, setPaymentStatus] = useState("PENDING"); // PENDING, PROCESSING, SUCCESS
+  const [amount, setAmount] = useState(2500);
 
   const user = React.useMemo(() => {
     const stored = localStorage.getItem("user");
@@ -22,17 +24,26 @@ export default function Payment() {
       try {
         const apptRes = await api.get(`/appointments/${appointmentId}`);
         setAppointment(apptRes.data);
-        
-        // Also check if payment already made
-        const payRes = await api.get(`/payments/user/${user.id}`);
-        const existingPayment = payRes.data.find(p => p.appointmentId === appointmentId);
-        
-        if (existingPayment && existingPayment.status === 'COMPLETED') {
-          setPaymentStatus('SUCCESS');
+
+        if (apptRes.data?.doctorId) {
+          try {
+            const dRes = await api.get(`/doctors/${apptRes.data.doctorId}`);
+            if (dRes.data?.consultationFee) setAmount(Number(dRes.data.consultationFee));
+          } catch (e) { /* keep default */ }
         }
+
+        try {
+          const payRes = await api.get(`/payments/user/${user.id}`);
+          const existing = payRes.data.find(
+            (p) => String(p.appointmentId) === String(appointmentId)
+          );
+          if (existing && existing.status === "SUCCESS") {
+            setPaymentStatus("SUCCESS");
+          }
+        } catch (e) { /* ignore */ }
       } catch (err) {
         console.error(err);
-        setError("Failed to load appointment details block.");
+        setError("Failed to load appointment details.");
       } finally {
         setLoading(false);
       }
@@ -46,41 +57,46 @@ export default function Payment() {
     setError(null);
     try {
       const payload = {
-        appointmentId: appointmentId,
-        patientId: user.id,
+        appointmentId: Number(appointmentId),
+        userId: user.id,
         doctorId: appointment.doctorId,
-        amount: 2500, // Using default simulated fee
+        amount: amount,
         currency: "LKR",
         paymentMethod: "CARD",
-        status: "COMPLETED"
       };
 
-      await api.post('/payments/process', payload);
-      
-      // Update appointment status to ACCEPTED since payment done
-      await api.put(`/appointments/${appointmentId}/status`, { status: "ACCEPTED" });
+      const res = await api.post("/payments", payload);
+      const data = res.data || {};
+
+      // If real Stripe returned a clientSecret, confirm via Stripe (mock-safe fallback below)
+      if (data.stripeClientSecret && data.stripeClientSecret !== "mock_client_secret") {
+        // Real Stripe flow: frontend Stripe.js would confirm. For this mock UI we mark SUCCESS server-side.
+        try {
+          await api.put(`/payments/${data.paymentId}/status`, { status: "SUCCESS" });
+        } catch (e) {
+          throw new Error("Payment confirmation failed.");
+        }
+      }
+
+      // Move appointment to PENDING so doctor can review
+      await api.put(`/appointments/${appointmentId}/status`, { status: "PENDING" });
 
       setPaymentStatus("SUCCESS");
-      
-      // Create a notification for the patient automatically
-      await api.post('/notifications', {
-        userId: user.id,
-        message: `Payment of LKR 2500 successful for appointment with Dr. ${appointment.doctorName}.`,
-        type: "PAYMENT",
-        read: false
-      });
-      
+      toast.success("Payment successful — awaiting doctor confirmation");
+
+      setTimeout(() => navigate("/patient/dashboard/appointments"), 2500);
     } catch (err) {
       console.error(err);
       setError("Payment processing failed. Please try again.");
       setPaymentStatus("PENDING");
+      toast.error("Payment failed");
     }
   };
 
   if (loading) {
     return (
-      <div className="dashboard-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <div className="skeleton" style={{ width: '400px', height: '400px' }}></div>
+      <div className="dashboard-container" style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <div className="skeleton" style={{ width: "400px", height: "400px" }}></div>
       </div>
     );
   }
@@ -88,28 +104,31 @@ export default function Payment() {
   if (error && !appointment) {
     return (
       <div className="dashboard-container">
-        <div className="dash-card" style={{ backgroundColor: 'var(--danger-bg)', color: 'var(--danger)' }}>
+        <div className="dash-card" style={{ backgroundColor: "var(--danger-bg)", color: "var(--danger)" }}>
           {error}
-          <div style={{ marginTop: '16px' }}>
-            <button className="btn btn-outline" onClick={() => navigate('/patient/dashboard/appointments')}>Back to Appointments</button>
+          <div style={{ marginTop: "16px" }}>
+            <button className="btn btn-outline" onClick={() => navigate("/patient/dashboard/appointments")}>Back to Appointments</button>
           </div>
         </div>
       </div>
     );
   }
 
+  const formattedAmount = Number(amount).toLocaleString();
+
   return (
-    <div className="dashboard-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+    <div className="dashboard-container" style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
       <div className="dash-card" style={{ maxWidth: "500px", width: "100%" }}>
-        
+
         {paymentStatus === "SUCCESS" ? (
           <div className="empty-state" style={{ padding: "40px 20px" }}>
-            <CheckCircle size={64} color="var(--success)" style={{ opacity: 1, marginBottom: '24px' }} />
+            <CheckCircle size={64} color="var(--success)" style={{ opacity: 1, marginBottom: "24px" }} />
             <h2 style={{ margin: "0 0 12px", color: "var(--text-main)" }}>Payment Successful!</h2>
             <p style={{ color: "var(--text-muted)", marginBottom: "32px", fontSize: "0.95rem" }}>
               Your appointment with Dr. {appointment?.doctorName} is confirmed.
+              Redirecting to appointments...
             </p>
-            <button className="btn btn-primary" onClick={() => navigate('/patient/dashboard/appointments')}>
+            <button className="btn btn-primary" onClick={() => navigate("/patient/dashboard/appointments")}>
               Back to Appointments
             </button>
           </div>
@@ -124,7 +143,7 @@ export default function Payment() {
               <h3 style={{ margin: "0 0 12px", fontSize: "1rem", color: "var(--text-main)" }}>Order Summary</h3>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "0.9rem" }}>
                 <span style={{ color: "var(--text-muted)" }}>Consultation - Dr. {appointment?.doctorName}</span>
-                <span style={{ fontWeight: "600", color: "var(--text-main)" }}>LKR 2,500</span>
+                <span style={{ fontWeight: "600", color: "var(--text-main)" }}>LKR {formattedAmount}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "0.9rem" }}>
                 <span style={{ color: "var(--text-muted)" }}>Platform Fee</span>
@@ -133,7 +152,7 @@ export default function Payment() {
               <hr style={{ border: "none", borderTop: "1px dashed var(--border)", margin: "12px 0" }} />
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "1.1rem" }}>
                 <span style={{ fontWeight: "600", color: "var(--text-main)" }}>Total</span>
-                <span style={{ fontWeight: "bold", color: "var(--primary)" }}>LKR 2,500</span>
+                <span style={{ fontWeight: "bold", color: "var(--primary)" }}>LKR {formattedAmount}</span>
               </div>
             </div>
 
@@ -147,8 +166,8 @@ export default function Payment() {
               <div className="form-group">
                 <label className="form-label">Card Number</label>
                 <div style={{ position: "relative" }}>
-                   <CreditCard size={18} style={{ position: "absolute", left: "12px", top: "11px", color: "var(--text-muted)" }} />
-                   <input type="text" className="form-input" required placeholder="0000 0000 0000 0000" style={{ paddingLeft: "38px" }} maxLength={19} />
+                  <CreditCard size={18} style={{ position: "absolute", left: "12px", top: "11px", color: "var(--text-muted)" }} />
+                  <input type="text" className="form-input" required placeholder="4242 4242 4242 4242" style={{ paddingLeft: "38px" }} maxLength={19} />
                 </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "24px" }}>
@@ -163,9 +182,9 @@ export default function Payment() {
               </div>
 
               <button type="submit" className="btn btn-primary" style={{ width: "100%", padding: "12px", fontSize: "1rem" }} disabled={paymentStatus === "PROCESSING"}>
-                {paymentStatus === "PROCESSING" ? "Processing..." : `Pay LKR 2,500`}
+                {paymentStatus === "PROCESSING" ? "Processing..." : `Pay LKR ${formattedAmount}`}
               </button>
-              
+
               <div style={{ textAlign: "center", marginTop: "16px" }}>
                 <button type="button" className="btn btn-outline" style={{ border: "none", color: "var(--text-muted)" }} onClick={() => navigate(-1)}>
                   Cancel

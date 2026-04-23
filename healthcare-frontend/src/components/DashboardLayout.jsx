@@ -9,6 +9,7 @@ export default function DashboardLayout({ children }) {
     role: "PATIENT",
     name: "User",
     initials: "U",
+    profilePicUrl: null,
   });
   const location = useLocation();
 
@@ -34,6 +35,7 @@ export default function DashboardLayout({ children }) {
           role: user.role || storedRole || "PATIENT",
           name: user.name || "User",
           initials: initials.toUpperCase(),
+          profilePicUrl: user.profilePicUrl || null,
         });
       } catch (e) {
         console.error("Auth parse error", e);
@@ -79,6 +81,7 @@ export default function DashboardLayout({ children }) {
         userRole={userRoles.role}
         userName={userRoles.name}
         initials={userRoles.initials}
+        profilePicUrl={userRoles.profilePicUrl}
       />
       <main style={styles.mainContent}>{children || <Outlet />}</main>
     </div>
@@ -98,6 +101,7 @@ const styles = {
     flexDirection: "column",
     overflowX: "hidden",
     isolation: "isolate" /* Prevent z-index issues */,
+    padding: "16px 16px 16px 24px" /* top right bottom left — extra left gap from sidebar */,
   },
   adminLayout: {
     minHeight: "100vh",

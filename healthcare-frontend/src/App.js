@@ -33,6 +33,7 @@ import PatientDashboard from "./pages/PatientDashboard";
 import DoctorDashboard from "./pages/DoctorDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import TransactionsPage from "./pages/TransactionsPage";
+import AdminAppointmentsPage from "./pages/AdminAppointmentsPage";
 import Dashboard from "./pages/Dashboard";
 import DashboardLayout from "./components/DashboardLayout";
 import PatientDoctorsPage from "./pages/patient/PatientDoctorsPage";
@@ -41,6 +42,7 @@ import PatientConsultationsPage from "./pages/patient/PatientConsultationsPage";
 import PatientReportsPage from "./pages/patient/PatientReportsPage";
 import PatientPrescriptionsPage from "./pages/patient/PatientPrescriptionsPage";
 import PatientNotificationsPage from "./pages/patient/PatientNotificationsPage";
+import SymptomCheckerPage from "./pages/patient/SymptomCheckerPage";
 import DoctorOverview from "./pages/doctor/DoctorOverview";
 import DoctorAppointmentsPage from "./pages/doctor/DoctorAppointmentsPage";
 import DoctorRequestsPage from "./pages/doctor/DoctorRequestsPage";
@@ -152,18 +154,39 @@ function App() {
 
   if (verifying) {
     return (
-      <div style={loadingStyles.page}>
-        <div style={loadingStyles.card}>
-          <div style={loadingStyles.logoWrap}>
-            <img src={logo} alt="Clinexa" style={loadingStyles.logo} />
-          </div>
-          <h3 style={loadingStyles.title}>Clinexa</h3>
-          <p style={loadingStyles.text}>Verifying your secure session...</p>
-          <div style={loadingStyles.progressTrack}>
-            <div style={loadingStyles.progressBar} />
+      <>
+        <style>{`
+          @keyframes loadingPulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.06); opacity: 0.85; }
+          }
+          @keyframes loadingShimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(200%); }
+          }
+          @keyframes loadingFadeIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes loadingGlow {
+            0%, 100% { box-shadow: 0 0 30px rgba(15, 110, 86, 0.15), 0 0 60px rgba(15, 110, 86, 0.05); }
+            50% { box-shadow: 0 0 40px rgba(15, 110, 86, 0.25), 0 0 80px rgba(15, 110, 86, 0.1); }
+          }
+        `}</style>
+        <div style={loadingStyles.page}>
+          <div style={loadingStyles.content}>
+            <div style={loadingStyles.logoWrap}>
+              <img src={logo} alt="MediConnect" style={loadingStyles.logo} />
+            </div>
+            <p style={loadingStyles.text}>Verifying your secure session</p>
+            <div style={loadingStyles.progressTrack}>
+              <div style={loadingStyles.progressBar}>
+                <div style={loadingStyles.progressShimmer} />
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -174,23 +197,36 @@ function App() {
         toastOptions={{
           duration: 4000,
           style: {
-            background: "#FFFFFF",
-            color: "var(--admin-muted)",
-            fontFamily: "Inter, sans-serif",
-            fontSize: "13px",
-            fontWeight: 400,
-            borderRadius: "10px",
-            padding: "14px 16px",
-            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)",
+            background: "rgba(255, 255, 255, 0.95)",
+            backdropFilter: "blur(10px)",
+            color: "#1e293b",
+            fontFamily: "'Inter', sans-serif",
+            fontSize: "14px",
+            fontWeight: 500,
+            borderRadius: "14px",
+            padding: "16px 20px",
+            boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+            border: "1px solid rgba(255, 255, 255, 0.5)",
           },
           success: {
-            style: { borderLeft: "4px solid #1D9E75" },
-            iconTheme: { primary: "#E1F5EE", secondary: "#0F6E56" },
+            iconTheme: { primary: "#10b981", secondary: "#fff" },
+            style: {
+              borderLeft: "6px solid #10b981",
+              background: "rgba(240, 253, 244, 0.95)",
+            },
           },
           error: {
-            style: { borderLeft: "4px solid #E24B4A" },
+            iconTheme: { primary: "#ef4444", secondary: "#fff" },
+            style: {
+              borderLeft: "6px solid #ef4444",
+              background: "rgba(254, 242, 242, 0.95)",
+            },
             duration: 5000,
-            iconTheme: { primary: "#FCEBEB", secondary: "#A32D2D" },
+          },
+          loading: {
+            style: {
+              background: "rgba(255, 255, 255, 0.95)",
+            },
           },
         }}
       />
@@ -266,7 +302,6 @@ function App() {
               />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/complete-profile" element={<CompleteProfile />} />
               <Route
                 path="/profile"
                 element={
@@ -279,6 +314,8 @@ function App() {
               {/* Catch-all for non-dashboard */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
+
+            <Route path="/complete-profile" element={<CompleteProfile />} />
 
             {/* ─── DASHBOARD ROUTES (No Header/Footer, Sidebar instead) ─── */}
             <Route element={<DashboardLayout />}>
@@ -310,6 +347,7 @@ function App() {
                   path="notifications"
                   element={<PatientNotificationsPage />}
                 />
+                <Route path="symptoms" element={<SymptomCheckerPage />} />
                 <Route path="profile" element={<Profile />} />
                 <Route
                   path="consult/:appointmentId"
@@ -338,10 +376,10 @@ function App() {
                   path="prescriptions"
                   element={<DoctorPrescriptionsPage />}
                 />
-                <Route
-                  path="notifications"
+                <Route path="notifications"
                   element={<DoctorNotificationsPage />}
                 />
+                <Route path="reports/:patientId" element={<PatientReportsPage />} />
                 <Route path="profile" element={<Profile />} />
                 <Route
                   path="consult/:appointmentId"
@@ -361,8 +399,10 @@ function App() {
                 <Route index element={<AdminOverview />} />
                 <Route path="manage-users" element={<UserManagement />} />
                 <Route path="manage-doctors" element={<DoctorManagement />} />
+                <Route path="appointments" element={<AdminAppointmentsPage />} />
                 <Route path="transactions" element={<TransactionsPage />} />
                 <Route path="system-logs" element={<SystemLogs />} />
+                <Route path="profile" element={<Profile />} />
               </Route>
             </Route>
 
@@ -390,57 +430,66 @@ const loadingStyles = {
     justifyContent: "center",
     padding: "24px",
     background:
-      "radial-gradient(circle at top, rgba(9, 52, 86, 0.08), transparent 32%), linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%)",
+      "radial-gradient(ellipse at 30% 20%, rgba(15, 110, 86, 0.06) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(9, 52, 86, 0.05) 0%, transparent 50%), linear-gradient(180deg, #f8fbff 0%, #f0f5fa 50%, #e8f0f8 100%)",
   },
-  card: {
-    width: "100%",
-    maxWidth: "420px",
-    background: "#ffffff",
-    borderRadius: "24px",
-    padding: "36px 28px 30px",
-    textAlign: "center",
-    boxShadow: "0 18px 60px rgba(15, 23, 42, 0.12)",
-    border: "1px solid rgba(15, 23, 42, 0.06)",
+  content: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    animation: "loadingFadeIn 0.6s ease-out",
   },
   logoWrap: {
-    width: "96px",
-    height: "96px",
-    margin: "0 auto 18px",
-    borderRadius: "28px",
+    width: "140px",
+    height: "140px",
+    borderRadius: "36px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    background: "linear-gradient(135deg, #eef6ff 0%, #ffffff 100%)",
+    background: "linear-gradient(145deg, #ffffff 0%, #f0f7ff 100%)",
     boxShadow:
-      "inset 0 1px 0 rgba(255,255,255,0.9), 0 10px 24px rgba(9, 52, 86, 0.08)",
+      "0 20px 50px rgba(15, 23, 42, 0.1), 0 0 30px rgba(15, 110, 86, 0.08), inset 0 1px 0 rgba(255,255,255,1)",
+    marginBottom: "32px",
+    animation: "loadingPulse 2.4s ease-in-out infinite, loadingGlow 2.4s ease-in-out infinite",
+    border: "1px solid rgba(15, 110, 86, 0.08)",
   },
   logo: {
-    width: "72px",
-    height: "72px",
+    width: "100px",
+    height: "100px",
     objectFit: "contain",
   },
-  title: {
-    color: "var(--text-main)",
-    margin: "0 0 10px",
-    fontSize: "1.5rem",
-    fontWeight: 800,
-    letterSpacing: "0.01em",
-  },
   text: {
-    color: "var(--text-muted)",
-    fontSize: "0.95rem",
-    margin: "0 0 18px",
+    color: "#64748b",
+    fontSize: "0.9rem",
+    fontWeight: 500,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    marginBottom: "28px",
+    fontFamily: "'Inter', sans-serif",
   },
   progressTrack: {
-    height: "8px",
-    background: "#e8eef6",
+    width: "220px",
+    height: "4px",
+    background: "rgba(15, 23, 42, 0.06)",
     borderRadius: "999px",
     overflow: "hidden",
+    position: "relative",
   },
   progressBar: {
-    width: "45%",
+    width: "40%",
     height: "100%",
     borderRadius: "999px",
-    background: "linear-gradient(90deg, #0f6e56 0%, #15b981 100%)",
+    background: "linear-gradient(90deg, #0f6e56 0%, #10b981 50%, #34d399 100%)",
+    position: "relative",
+    overflow: "hidden",
+    animation: "loadingShimmer 1.8s ease-in-out infinite",
+  },
+  progressShimmer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)",
+    animation: "loadingShimmer 1.8s ease-in-out infinite",
   },
 };

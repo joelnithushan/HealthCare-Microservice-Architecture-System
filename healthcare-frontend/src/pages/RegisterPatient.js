@@ -93,6 +93,7 @@ const RegisterPatient = () => {
   const [otpError, setOtpError] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  // eslint-disable-next-line no-unused-vars
   const [otpVerified, setOtpVerified] = useState(false);
   const otpInputRefs = useRef([]);
 
@@ -289,7 +290,7 @@ const RegisterPatient = () => {
               onError={handleGoogleError}
               theme="outline"
               size="large"
-              width="100%"
+              width={400}
             />
           </div>
 

@@ -4,26 +4,24 @@ import {
   LayoutDashboard,
   Search,
   CalendarDays,
-  Video,
   FileText,
-  ClipboardList,
-  Bell,
   User,
   CalendarClock,
-  ClipboardCheck,
   Users,
   FilePen,
   UserCircle,
   LogOut,
   BadgeCheck,
   CreditCard,
+  Activity,
 } from "lucide-react";
 import logo from "../assets/logo.png";
+import { resolveProfileImageUrl } from "../utils/profileImage";
 import "./Sidebar.css";
 
 const PATIENT_NAV = [
-  { path: "/patient/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { path: "/patient/dashboard/doctors", label: "Browse Doctors", icon: Search },
+  { path: "/patient/dashboard", label: "Home", icon: LayoutDashboard },
+  { path: "/patient/dashboard/doctors", label: "Find Doctors", icon: Search },
   {
     path: "/patient/dashboard/appointments",
     label: "My Appointments",
@@ -31,87 +29,82 @@ const PATIENT_NAV = [
   },
   {
     path: "/patient/dashboard/consultations",
-    label: "Video Consultation",
-    icon: Video,
+    label: "Video Consultations",
+    icon: Activity,
   },
   {
     path: "/patient/dashboard/reports",
-    label: "Medical Reports",
+    label: "Medical History",
     icon: FileText,
   },
   {
-    path: "/patient/dashboard/prescriptions",
-    label: "Prescriptions",
-    icon: ClipboardList,
+    path: "/patient/dashboard/symptoms",
+    label: "Symptom Checker",
+    icon: Search,
   },
   {
     path: "/patient/dashboard/notifications",
     label: "Notifications",
-    icon: Bell,
+    icon: CalendarClock,
   },
-  { path: "/patient/dashboard/profile", label: "My Profile", icon: User },
+  { path: "/patient/dashboard/profile", label: "Profile", icon: User },
 ];
 
 const DOCTOR_NAV = [
   { path: "/doctor/dashboard", label: "Dashboard", icon: LayoutDashboard },
   {
-    path: "/doctor/dashboard/doctor-appointments",
-    label: "My Schedule",
+    path: "/doctor/dashboard/requests",
+    label: "Appointment Requests",
     icon: CalendarClock,
   },
   {
-    path: "/doctor/dashboard/requests",
-    label: "Appointment Requests",
-    icon: ClipboardCheck,
-  },
-  {
-    path: "/doctor/dashboard/consultations",
-    label: "Video Consultations",
-    icon: Video,
+    path: "/doctor/dashboard/doctor-appointments",
+    label: "My Schedule",
+    icon: CalendarDays,
   },
   { path: "/doctor/dashboard/patients", label: "Patient Records", icon: Users },
   {
     path: "/doctor/dashboard/prescriptions",
-    label: "Digital Prescriptions",
+    label: "Prescriptions",
     icon: FilePen,
   },
   {
     path: "/doctor/dashboard/notifications",
     label: "Notifications",
-    icon: Bell,
+    icon: Activity,
   },
-  { path: "/doctor/dashboard/profile", label: "My Profile", icon: UserCircle },
+  { path: "/doctor/dashboard/profile", label: "Profile", icon: UserCircle },
 ];
 
 const ADMIN_NAV = [
   {
     path: "/admin/dashboard",
-    label: "Dashboard Overview",
+    label: "Dashboard",
     icon: LayoutDashboard,
   },
   {
     path: "/admin/dashboard/manage-users",
-    label: "User Management",
+    label: "Manage Users",
     icon: Users,
   },
   {
     path: "/admin/dashboard/manage-doctors",
-    label: "Doctor Verification",
+    label: "Manage Doctors",
     icon: BadgeCheck,
   },
   {
-    path: "/admin/dashboard/transactions",
-    label: "Payments & Revenue",
-    icon: CreditCard,
+    path: "/admin/dashboard/appointments",
+    label: "All Appointments",
+    icon: CalendarDays,
   },
   {
-    path: "/admin/dashboard/system-logs",
-    label: "Reports & Logs",
-    icon: FileText,
+    path: "/admin/dashboard/transactions",
+    label: "Reports",
+    icon: CreditCard,
   },
 ];
 
-export default function Sidebar({ userRole, userName, initials }) {
+export default function Sidebar({ userRole, userName, initials, profilePicUrl }) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -160,7 +153,18 @@ export default function Sidebar({ userRole, userName, initials }) {
           />
         </div>
         <NavLink to={profilePath} className="sidebar-user" title="Open profile">
-          <div className="user-avatar">{initials}</div>
+          <div className="user-avatar">
+            {profilePicUrl ? (
+              <img 
+                src={resolveProfileImageUrl(profilePicUrl)} 
+                alt={userName} 
+                className="user-avatar-img"
+                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+              />
+            ) : (
+              initials
+            )}
+          </div>
           <div className="user-info">
             <span className="user-name">{userName}</span>
             <span className="user-role">

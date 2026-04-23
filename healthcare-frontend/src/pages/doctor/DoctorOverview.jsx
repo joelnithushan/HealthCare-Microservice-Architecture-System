@@ -26,8 +26,13 @@ export default function DoctorOverview() {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
+        let doctorId = user.id;
+        try {
+          const dRes = await api.get(`/doctors/email/${encodeURIComponent(user.email)}`);
+          if (dRes.data && dRes.data.id) doctorId = dRes.data.id;
+        } catch (e) { /* fallback */ }
         const [apptsRes, notifRes] = await Promise.allSettled([
-          api.get(`/appointments/doctor/${user.id}`),
+          api.get(`/appointments/doctor/${doctorId}`),
           api.get(`/notifications/user/${user.id}`)
         ]);
 
@@ -45,11 +50,11 @@ export default function DoctorOverview() {
       }
     };
     if (user?.id) fetchDashboardData();
-  }, [user?.id]);
+  }, [user?.id, user?.email]);
 
   if (!user || user.role !== 'DOCTOR') return <Navigate to="/login" replace />;
 
-  const todayAppointments = appointments.filter(a => a.appointmentDate === today && (a.status === 'ACCEPTED' || a.status === 'COMPLETED'));
+  const todayAppointments = appointments.filter(a => a.appointmentDate === today && (a.status === 'ACCEPTED' || a.status === 'CONFIRMED' || a.status === 'COMPLETED'));
   const pendingRequests = appointments.filter(a => a.status === 'PENDING');
   const pastAppointments = appointments.filter(a => a.status === 'COMPLETED');
   
@@ -126,10 +131,10 @@ export default function DoctorOverview() {
                 {todayAppointments.sort((a,b) => a.appointmentTime.localeCompare(b.appointmentTime)).map(appt => (
                   <div key={appt.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
                     <div>
-                      <h4 style={{ margin: '0 0 4px', color: 'var(--text-main)', fontSize: '1rem' }}>{appt.appointmentTime.substring(0, 5)} - Patient {appt.patientId}</h4>
+                      <h4 style={{ margin: '0 0 4px', color: 'var(--text-main)', fontSize: '1rem' }}>{appt.appointmentTime.substring(0, 5)} - {appt.patientName || `Patient ${appt.patientId}`}</h4>
                       <span className={`badge ${appt.status === 'COMPLETED' ? 'badge-success' : 'badge-pending'}`}>{appt.status}</span>
                     </div>
-                    {appt.status === 'ACCEPTED' && appt.appointmentType === 'VIDEO' && (
+                    {appt.status === 'CONFIRMED' && (appt.appointmentType === 'VIDEO' || appt.appointmentType === 'VIDEO_CONSULTATION') && (
                       <button className="btn btn-primary" onClick={() => navigate(`/doctor/dashboard/consult/${appt.id}`)}>
                         <Video size={16} /> Join Call
                       </button>

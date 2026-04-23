@@ -51,7 +51,7 @@ const PatientDashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user]);
 
   useEffect(() => {
     if (user?.id) {

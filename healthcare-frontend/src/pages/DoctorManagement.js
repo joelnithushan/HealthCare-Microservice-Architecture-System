@@ -13,10 +13,9 @@ import {
   User,
   Cake,
   MapPin,
+  X,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import ConfirmDialog from "../components/ConfirmDialog";
-
 import "../pages/PatientDashboard.css";
 
 const DoctorManagement = () => {
@@ -26,7 +25,11 @@ const DoctorManagement = () => {
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [resetTarget, setResetTarget] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
+  // Reject with reason
+  const [rejectTarget, setRejectTarget] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   useEffect(() => {
     const fetchDoctors = async () => {
@@ -42,13 +45,28 @@ const DoctorManagement = () => {
     fetchDoctors();
   }, []);
 
+  const sendNotification = async (doctor, type, subject, message) => {
+    try {
+      await api.post("/notifications/send", {
+        userId: doctor.id,
+        type,
+        subject,
+        message,
+        recipientEmail: doctor.email,
+        status: "SENT",
+      });
+    } catch (err) {
+      console.warn("Notification delivery skipped:", err.message);
+    }
+  };
+
   const handleApprove = async () => {
     if (!selectedDoc) return;
     setIsProcessing(true);
     try {
       // 1. Approve Identity in User Service
       await api.put(`/admin/users/${selectedDoc.id}/approve`);
-      
+
       // 2. Sync and Verify in Doctor Service
       try {
         let doctorProfileId = null;
@@ -58,14 +76,15 @@ const DoctorManagement = () => {
         } catch (err) {
           // If not found, create the profile
           if (err.response?.status === 404) {
-             const createRes = await api.post("/doctors", {
-               name: selectedDoc.name,
-               email: selectedDoc.email,
-               specialization: selectedDoc.specialization || "General Physician",
-               phone: selectedDoc.mobileNumber,
-               availability: "Schedule pending verification"
-             });
-             doctorProfileId = createRes.data?.id;
+            const createRes = await api.post("/doctors", {
+              name: selectedDoc.name,
+              email: selectedDoc.email,
+              specialization:
+                selectedDoc.specialization || "General Physician",
+              phone: selectedDoc.mobileNumber,
+              availability: "Schedule pending verification",
+            });
+            doctorProfileId = createRes.data?.id;
           } else {
             throw err;
           }
@@ -77,9 +96,17 @@ const DoctorManagement = () => {
       } catch (err) {
         console.warn(
           "Medical profile sync skipped or failed, only identity approved",
-          err
+          err,
         );
       }
+
+      // 3. Send approval notification
+      await sendNotification(
+        selectedDoc,
+        "DOCTOR_VERIFIED",
+        "Your MediConnect Account Has Been Verified",
+        `Congratulations Dr. ${selectedDoc.name}! Your medical credentials have been verified. You can now accept patient bookings, issue prescriptions, and conduct video consultations through the Clinexa platform.`,
+      );
 
       setDoctors(
         doctors.map((d) =>
@@ -95,31 +122,61 @@ const DoctorManagement = () => {
     }
   };
 
-  const handleReject = async (id, email) => {
+  const handleReject = async () => {
+    if (!rejectTarget) return;
+    const reason = rejectReason.trim();
+    if (reason.length < 10) {
+      toast.error("Please provide at least 10 characters for the rejection reason.");
+      return;
+    }
+
+    setIsProcessing(true);
     try {
-      await api.put(`/admin/users/${id}/reject`);
+      await api.put(`/admin/users/${rejectTarget.id}/reject`);
       try {
-        const docRes = await api.get(`/doctors/email/${email}`);
+        const docRes = await api.get(`/doctors/email/${rejectTarget.email}`);
         if (docRes.data && docRes.data.id) {
           await api.put(`/admin/doctors/${docRes.data.id}/reject`);
         }
-      } catch (err) {}
-      setDoctors(
-        doctors.map((d) => (d.id === id ? { ...d, approved: false } : d)),
+      } catch (err) {
+        // Doctor service profile may not exist
+      }
+
+      // Send rejection notification with reason
+      await sendNotification(
+        rejectTarget,
+        "DOCTOR_REJECTED",
+        "MediConnect Verification Update",
+        `Dear Dr. ${rejectTarget.name}, we regret to inform you that your medical credentials verification has not been approved. Reason: "${reason}". Please contact support or re-submit your documentation for review.`,
       );
-      toast.success("Verification status reset");
-      setResetTarget(null);
+
+      setDoctors(
+        doctors.map((d) =>
+          d.id === rejectTarget.id ? { ...d, approved: false, rejected: true } : d,
+        ),
+      );
+      toast.success("Doctor verification has been rejected");
+      setRejectTarget(null);
+      setRejectReason("");
     } catch (err) {
       toast.error("Failed to update status");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const filtered = doctors.filter(
-    (d) =>
+  const filtered = doctors.filter((d) => {
+    const matchSearch =
       (d.name || "").toLowerCase().includes(search.toLowerCase()) ||
       (d.specialization || "").toLowerCase().includes(search.toLowerCase()) ||
-      (d.hospitalAttached || "").toLowerCase().includes(search.toLowerCase()),
-  );
+      (d.hospitalAttached || "").toLowerCase().includes(search.toLowerCase()) ||
+      (d.slmcNumber || "").toLowerCase().includes(search.toLowerCase());
+
+    if (statusFilter === "PENDING") return matchSearch && !d.approved;
+    if (statusFilter === "VERIFIED") return matchSearch && d.approved === true;
+    if (statusFilter === "REJECTED") return matchSearch && d.rejected === true;
+    return matchSearch;
+  });
 
   if (loading)
     return (
@@ -223,7 +280,7 @@ const DoctorManagement = () => {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: "32px",
+          marginBottom: "24px",
         }}
       >
         <h1
@@ -259,142 +316,237 @@ const DoctorManagement = () => {
         </div>
       </div>
 
+      {/* Filter Tabs */}
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))",
-          gap: "24px",
+          display: "flex",
+          gap: "8px",
+          marginBottom: "24px",
         }}
       >
-        {filtered.map((doc) => (
-          <div
-            key={doc.id}
+        {["ALL", "PENDING", "VERIFIED", "REJECTED"].map((f) => (
+          <button
+            key={f}
+            onClick={() => setStatusFilter(f)}
             style={{
-              background: "var(--admin-surface)",
+              padding: "8px 18px",
+              height: "38px",
+              fontSize: "13px",
+              fontWeight: 600,
+              borderRadius: "8px",
               border: "1px solid var(--admin-border)",
-              borderRadius: "12px",
-              padding: "24px",
-              boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "20px",
+              background:
+                statusFilter === f
+                  ? f === "PENDING"
+                    ? "#FEF3C7"
+                    : f === "VERIFIED"
+                      ? "#dff6ec"
+                      : f === "REJECTED"
+                        ? "#FEE2E2"
+                        : "#dff6ec"
+                  : "#FFF",
+              color:
+                statusFilter === f
+                  ? f === "PENDING"
+                    ? "#92400E"
+                    : f === "VERIFIED"
+                      ? "#0f6e56"
+                      : f === "REJECTED"
+                        ? "#991B1B"
+                        : "#0f6e56"
+                  : "var(--admin-muted)",
+              cursor: "pointer",
+              fontFamily: "var(--font-base)",
+              transition: "all 0.2s",
             }}
           >
-            <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
-              <div
-                className="apt-avatar"
-                style={{
-                  width: 50,
-                  height: 50,
-                  background: "var(--admin-bg)",
-                  color: "var(--admin-text)",
-                  fontSize: "16px",
-                }}
-              >
-                {doc.name?.substring(0, 2).toUpperCase()}
-              </div>
-              <div style={{ flex: 1 }}>
-                <h4
-                  style={{
-                    margin: "0 0 4px 0",
-                    color: "var(--admin-text)",
-                    fontSize: "16px",
-                    fontFamily: "var(--font-display)",
-                  }}
-                >
-                  Dr. {doc.name}
-                </h4>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <span
-                    style={{ fontSize: "13px", color: "var(--admin-muted)" }}
-                  >
-                    {doc.specialization || "General"}
-                  </span>
-                  <span
-                    className={`status-badge ${doc.approved ? "approved" : "pending"}`}
-                  >
-                    {doc.approved ? "Verified" : "Pending Review"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "12px",
-                padding: "16px",
-                background: "#F8FAFC",
-                borderRadius: "8px",
-              }}
-            >
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: "4px" }}
-              >
-                <span style={labelStyle}>SLMC LICENSE</span>
-                <span style={valueStyle}>{doc.slmcNumber || "N/A"}</span>
-              </div>
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: "4px" }}
-              >
-                <span style={labelStyle}>HOSPITAL</span>
-                <span style={valueStyle}>{doc.hospitalAttached || "None"}</span>
-              </div>
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: "4px" }}
-              >
-                <span style={labelStyle}>EMAIL</span>
-                <span style={valueStyle} title={doc.email}>
-                  {doc.email?.split("@")[0]}...
-                </span>
-              </div>
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: "4px" }}
-              >
-                <span style={labelStyle}>MEMBER ID</span>
-                <span style={valueStyle}>#{doc.id}</span>
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: "12px",
-                marginTop: "auto",
-              }}
-            >
-              {!doc.approved ? (
-                <button
-                  className="admin-btn-primary"
-                  onClick={() => {
-                    setSelectedDoc(doc);
-                    setShowDetails(true);
-                  }}
-                >
-                  <ShieldCheck
-                    size={16}
-                    style={{
-                      display: "inline",
-                      verticalAlign: "text-bottom",
-                      marginRight: "4px",
-                    }}
-                  />{" "}
-                  Review & Approve
-                </button>
-              ) : (
-                <button
-                  className="admin-btn-danger"
-                  onClick={() => setResetTarget(doc)}
-                >
-                  Reset Credentials
-                </button>
-              )}
-            </div>
-          </div>
+            {f === "ALL"
+              ? `All (${doctors.length})`
+              : f === "PENDING"
+                ? `Pending (${doctors.filter((d) => !d.approved).length})`
+                : f === "VERIFIED"
+                  ? `Verified (${doctors.filter((d) => d.approved === true).length})`
+                  : `Rejected (${doctors.filter((d) => d.rejected === true).length})`}
+          </button>
         ))}
       </div>
+
+      {filtered.length === 0 ? (
+        <div
+          style={{
+            background: "var(--admin-surface)",
+            border: "1px solid var(--admin-border)",
+            borderRadius: "12px",
+            padding: "60px 32px",
+            textAlign: "center",
+            color: "var(--admin-muted)",
+          }}
+        >
+          <ShieldCheck size={40} style={{ opacity: 0.4, marginBottom: "12px" }} />
+          <p style={{ margin: 0, fontSize: "15px" }}>
+            No doctors match the current filter.
+          </p>
+        </div>
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))",
+            gap: "24px",
+          }}
+        >
+          {filtered.map((doc) => (
+            <div
+              key={doc.id}
+              style={{
+                background: "var(--admin-surface)",
+                border: "1px solid var(--admin-border)",
+                borderRadius: "12px",
+                padding: "24px",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+                display: "flex",
+                flexDirection: "column",
+                gap: "20px",
+              }}
+            >
+              <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+                <div
+                  className="apt-avatar"
+                  style={{
+                    width: 50,
+                    height: 50,
+                    background: "var(--admin-bg)",
+                    color: "var(--admin-text)",
+                    fontSize: "16px",
+                  }}
+                >
+                  {doc.name?.substring(0, 2).toUpperCase()}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <h4
+                    style={{
+                      margin: "0 0 4px 0",
+                      color: "var(--admin-text)",
+                      fontSize: "16px",
+                      fontFamily: "var(--font-display)",
+                    }}
+                  >
+                    Dr. {doc.name}
+                  </h4>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <span
+                      style={{ fontSize: "13px", color: "var(--admin-muted)" }}
+                    >
+                      {doc.specialization || "General"}
+                    </span>
+                    <span
+                      className={`status-badge ${doc.approved ? "approved" : doc.rejected ? "failed" : "pending"}`}
+                    >
+                      {doc.approved ? "Verified" : doc.rejected ? "Rejected" : "Pending Review"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "12px",
+                  padding: "16px",
+                  background: "#F8FAFC",
+                  borderRadius: "8px",
+                }}
+              >
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: "4px" }}
+                >
+                  <span style={labelStyle}>SLMC LICENSE</span>
+                  <span style={valueStyle}>{doc.slmcNumber || "N/A"}</span>
+                </div>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: "4px" }}
+                >
+                  <span style={labelStyle}>HOSPITAL</span>
+                  <span style={valueStyle}>{doc.hospitalAttached || "None"}</span>
+                </div>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: "4px" }}
+                >
+                  <span style={labelStyle}>EMAIL</span>
+                  <span style={valueStyle} title={doc.email}>
+                    {doc.email?.split("@")[0]}...
+                  </span>
+                </div>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: "4px" }}
+                >
+                  <span style={labelStyle}>MEMBER ID</span>
+                  <span style={valueStyle}>#{doc.id}</span>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: "12px",
+                  marginTop: "auto",
+                }}
+              >
+                {!doc.approved ? (
+                  <>
+                    <button
+                      className="admin-btn-danger"
+                      onClick={() => {
+                        setRejectTarget(doc);
+                        setRejectReason("");
+                      }}
+                    >
+                      <XCircle
+                        size={16}
+                        style={{
+                          display: "inline",
+                          verticalAlign: "text-bottom",
+                          marginRight: "4px",
+                        }}
+                      />
+                      Reject
+                    </button>
+                    <button
+                      className="admin-btn-primary"
+                      onClick={() => {
+                        setSelectedDoc(doc);
+                        setShowDetails(true);
+                      }}
+                    >
+                      <ShieldCheck
+                        size={16}
+                        style={{
+                          display: "inline",
+                          verticalAlign: "text-bottom",
+                          marginRight: "4px",
+                        }}
+                      />{" "}
+                      Review & Approve
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="admin-btn-danger"
+                    onClick={() => {
+                      setRejectTarget(doc);
+                      setRejectReason("");
+                    }}
+                  >
+                    Revoke Verification
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Verification Modal */}
       {showDetails && selectedDoc && (
@@ -547,18 +699,88 @@ const DoctorManagement = () => {
         </div>
       )}
 
-      <ConfirmDialog
-        isOpen={Boolean(resetTarget)}
-        title="Reset Verification Status"
-        message="The doctor will lose medical privileges and be moved back to unverified state. Do you want to continue?"
-        confirmLabel="Reset Status"
-        cancelLabel="Keep Verified"
-        tone="danger"
-        onCancel={() => setResetTarget(null)}
-        onConfirm={() =>
-          resetTarget && handleReject(resetTarget.id, resetTarget.email)
-        }
-      />
+      {/* Reject with Reason Modal */}
+      {rejectTarget && (
+        <div
+          className="admin-modal-backdrop"
+          onClick={() => {
+            setRejectTarget(null);
+            setRejectReason("");
+          }}
+        >
+          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header">
+              <h3 className="admin-modal-title">
+                {rejectTarget.approved ? "Revoke Verification" : "Reject Doctor Verification"}
+              </h3>
+              <button
+                className="admin-modal-close"
+                onClick={() => {
+                  setRejectTarget(null);
+                  setRejectReason("");
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ marginBottom: "16px" }}>
+              <p style={{ margin: "0 0 4px 0", fontSize: "15px", color: "var(--admin-text)" }}>
+                {rejectTarget.approved
+                  ? <>You are about to revoke the verification for <strong>Dr. {rejectTarget.name}</strong>. They will lose medical privileges.</>
+                  : <>Please provide a reason for rejecting <strong>Dr. {rejectTarget.name}</strong>'s verification.</>}
+              </p>
+              <p style={{ margin: "8px 0 0", fontSize: "13px", color: "var(--admin-muted)" }}>
+                The doctor will be notified via email with your reason.
+              </p>
+            </div>
+
+            <div style={{ marginBottom: "8px" }}>
+              <label style={labelStyle}>REJECTION REASON</label>
+              <textarea
+                className="admin-input large"
+                placeholder="Enter reason for rejection (min 10 characters)..."
+                value={rejectReason}
+                maxLength={500}
+                onChange={(e) => setRejectReason(e.target.value)}
+                style={{ minHeight: "100px", resize: "vertical" }}
+              />
+              <div
+                style={{
+                  marginTop: "6px",
+                  fontSize: "12px",
+                  color: "var(--admin-muted)",
+                }}
+              >
+                {rejectReason.trim().length}/500 characters (minimum 10)
+              </div>
+            </div>
+
+            <div className="admin-modal-footer">
+              <button
+                className="admin-btn-cancel"
+                onClick={() => {
+                  setRejectTarget(null);
+                  setRejectReason("");
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="admin-btn-danger"
+                disabled={isProcessing || rejectReason.trim().length < 10}
+                onClick={handleReject}
+              >
+                {isProcessing
+                  ? "Processing..."
+                  : rejectTarget.approved
+                    ? "Revoke Verification"
+                    : "Reject Verification"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
 import api from "../services/api";
-import { 
-  User, Mail, Phone, MapPin, Briefcase, 
-  CreditCard, Shield, IdCard, Calendar, 
-  Fingerprint, MapIcon 
+import {
+  User, Mail, Phone, MapPin, Briefcase,
+  Shield, IdCard, Calendar,
+  Fingerprint, MapIcon, Camera, Upload
 } from "lucide-react";
 import "../components/DashboardShared.css";
 import toast from "react-hot-toast";
 import { validateNIC, validateLankanMobile, validateDOB } from "../utils/validations";
+import { resolveProfileImageUrl } from "../utils/profileImage";
 
 export default function Profile() {
   const [profile, setProfile] = useState({
@@ -22,13 +23,16 @@ export default function Profile() {
     specialization: "",
     hospitalAttached: "",
     age: null,
+    availability: "",
+    profilePicUrl: null,
     profileComplete: false
   });
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [passwordData, setPasswordData] = useState({ current: '', new: '', confirm: '' });
+  const [uploadingPic, setUploadingPic] = useState(false);
+  const [picTimestamp, setPicTimestamp] = useState(Date.now());
+
 
   const user = React.useMemo(() => {
     const stored = localStorage.getItem("user");
@@ -42,7 +46,7 @@ export default function Profile() {
       setProfile(res.data);
     } catch (err) {
       console.error(err);
-      setError("Failed to load profile details.");
+      toast.error("Failed to load profile details.");
     } finally {
       setLoading(false);
     }
@@ -50,6 +54,7 @@ export default function Profile() {
 
   useEffect(() => {
     if (user?.id) fetchProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   const handleProfileChange = (e) => {
@@ -105,7 +110,8 @@ export default function Profile() {
         district: profile.district,
         slmcNumber: profile.slmcNumber,
         specialization: profile.specialization,
-        hospitalAttached: profile.hospitalAttached
+        hospitalAttached: profile.hospitalAttached,
+        availability: profile.availability
       };
 
       const res = await api.put(`/users/${user.id}`, payload);
@@ -115,6 +121,26 @@ export default function Profile() {
       const updatedUser = { ...user, name: res.data.name };
       localStorage.setItem("user", JSON.stringify(updatedUser));
       window.dispatchEvent(new Event("userUpdated"));
+
+      // Synchronize with clinical Doctor Service if user is a DOCTOR
+      if (user.role === 'DOCTOR') {
+        try {
+          const docRes = await api.get(`/doctors/email/${user.email}`);
+          const doctorId = docRes.data.id;
+          await api.put(`/doctors/${doctorId}`, {
+            name: profile.name,
+            email: user.email,
+            specialization: profile.specialization,
+            phone: profile.mobileNumber,
+            availability: profile.availability,
+            hospital: profile.hospitalAttached
+          });
+          console.log("Clinical profile synchronized.");
+        } catch (syncErr) {
+          console.warn("Clinical profile sync failed:", syncErr);
+          // Non-critical error, don't block the user
+        }
+      }
       
       toast.success("Profile updated successfully!");
     } catch (err) {
@@ -124,15 +150,48 @@ export default function Profile() {
       setSaving(false);
     }
   };
+  
+  const handleProfilePicChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  const handlePasswordReset = (e) => {
-    e.preventDefault();
-    if (passwordData.new !== passwordData.confirm) {
-      return toast.error("New passwords do not match.");
+    // Check file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      return toast.error("Please select a valid image file (JPG, PNG).");
     }
-    toast.success("Security feature: Password reset link sent to your email.");
-    setPasswordData({ current: '', new: '', confirm: '' });
+
+    // Check file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      return toast.error("File size should not exceed 5MB.");
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    setUploadingPic(true);
+    try {
+      const res = await api.post(`/users/${user.id}/upload-profile-pic`, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      setProfile(prev => ({ ...prev, profilePicUrl: res.data.profilePicUrl }));
+      setPicTimestamp(Date.now());
+      
+      // Update local storage for sidebar/header persistence
+      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+      localStorage.setItem("user", JSON.stringify({ ...storedUser, profilePicUrl: res.data.profilePicUrl }));
+      window.dispatchEvent(new Event("userUpdated"));
+      
+      toast.success("Profile picture updated!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to upload profile picture.");
+    } finally {
+      setUploadingPic(false);
+    }
   };
+
+
 
   if (loading) {
     return (
@@ -263,6 +322,15 @@ export default function Profile() {
                       value={profile.hospitalAttached || ''} onChange={handleProfileChange} placeholder="Name of Hospital" required />
                   </div>
                 </div>
+
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label">Availability (Working Hours)</label>
+                  <div style={{ position: 'relative' }}>
+                    <Calendar size={16} style={iconStyle} />
+                    <input type="text" className="form-input" style={{ paddingLeft: '38px' }} name="availability" 
+                      value={profile.availability || ''} onChange={handleProfileChange} placeholder="e.g. Mon, Wed, Fri (9 AM - 5 PM)" />
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -275,26 +343,87 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Right Column: Security & Metadata */}
+        {/* Right Column: Profile Picture, Security & Metadata */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          
           <div className="dash-card">
             <div className="dash-card-header">
-              <h2 className="dash-card-title"><Shield size={20} /> Security</h2>
+              <h2 className="dash-card-title"><Camera size={20} /> Profile Picture</h2>
             </div>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-              Reset your password to keep your account secure.
-            </p>
-            <form onSubmit={handlePasswordReset}>
-              <div className="form-group">
-                <label className="form-label">New Password</label>
-                <input type="password" className="form-input" placeholder="Min. 6 characters"
-                  value={passwordData.new} onChange={e => setPasswordData({...passwordData, new: e.target.value})} />
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '10px 0' }}>
+              <div style={{ 
+                width: '120px', 
+                height: '120px', 
+                borderRadius: '50%', 
+                overflow: 'hidden', 
+                border: '4px solid #f1f5f9',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                position: 'relative',
+                backgroundColor: '#f8fafc',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                {profile.profilePicUrl ? (
+                  <img 
+                    src={resolveProfileImageUrl(profile.profilePicUrl, picTimestamp)} 
+                    alt="Profile" 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = "https://ui-avatars.com/api/?name=" + encodeURIComponent(profile.name || "User") + "&background=random";
+                    }}
+                  />
+                ) : (
+                  <User size={60} color="#cbd5e1" />
+                )}
+                
+                {uploadingPic && (
+                  <div style={{ 
+                    position: 'absolute', 
+                    inset: 0, 
+                    backgroundColor: 'rgba(255,255,255,0.7)', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center' 
+                  }}>
+                    <div className="spinner-small" style={{ borderTopColor: 'var(--primary)' }}></div>
+                  </div>
+                )}
               </div>
-              <button type="submit" className="btn btn-outline" style={{ width: '100%', marginTop: '8px' }}>
-                Change Password
-              </button>
-            </form>
+              
+              <div style={{ width: '100%' }}>
+                <input
+                  type="file"
+                  id="profile-pic-upload"
+                  hidden
+                  accept="image/*"
+                  onChange={handleProfilePicChange}
+                  disabled={uploadingPic}
+                />
+                <label 
+                  htmlFor="profile-pic-upload" 
+                  className="btn btn-outline" 
+                  style={{ 
+                    width: '100%', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    gap: '8px',
+                    cursor: uploadingPic ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  <Upload size={16} />
+                  {uploadingPic ? "Uploading..." : "Upload New Photo"}
+                </label>
+              </div>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                Allowed: JPG, PNG. Max 5MB.
+              </p>
+            </div>
           </div>
+
+
 
           <div className="dash-card" style={{ backgroundColor: profile.profileComplete ? 'var(--success-bg)' : '#FEF2F2' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

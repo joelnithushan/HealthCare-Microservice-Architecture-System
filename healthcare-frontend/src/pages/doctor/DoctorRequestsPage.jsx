@@ -16,11 +16,14 @@ export default function DoctorRequestsPage() {
   useEffect(() => {
     const fetchRequests = async () => {
       try {
-        const res = await api.get(`/appointments/doctor/${user.id}`);
-        // Filter ONLY pending
+        let doctorId = user.id;
+        try {
+          const dRes = await api.get(`/doctors/email/${encodeURIComponent(user.email)}`);
+          if (dRes.data && dRes.data.id) doctorId = dRes.data.id;
+        } catch (e) { /* fallback */ }
+        const res = await api.get(`/appointments/doctor/${doctorId}`);
         const pending = res.data.filter(a => a.status === 'PENDING');
         pending.sort((a, b) => new Date(a.appointmentDate) - new Date(b.appointmentDate));
-        
         setRequests(pending);
       } catch (err) {
         console.error(err);
@@ -30,32 +33,16 @@ export default function DoctorRequestsPage() {
       }
     };
     fetchRequests();
-  }, [user.id]);
+  }, [user.id, user.email]);
 
   const handleAction = async (apptId, action, patientId) => {
-    const newStatus = action === 'ACCEPT' ? 'ACCEPTED' : 'REJECTED';
+    const newStatus = action === 'ACCEPT' ? 'CONFIRMED' : 'REJECTED';
     
     if (!window.confirm(`Are you sure you want to ${action.toLowerCase()} this request?`)) return;
 
     try {
-      // 1. Update appointment status
       await api.put(`/appointments/${apptId}/status`, { status: newStatus });
-      
-      // 2. Remove from local list
       setRequests(prev => prev.filter(r => r.id !== apptId));
-      
-      // 3. Send Notification to Patient via API
-      try {
-        await api.post('/notifications', {
-          userId: patientId,
-          message: `Your appointment request with Dr. ${user.name} on has been ${newStatus.toLowerCase()}.`,
-          type: "APPOINTMENT",
-          read: false
-        });
-      } catch (notifErr) {
-        console.warn("Could not send patient notification:", notifErr);
-      }
-
     } catch (err) {
       alert(`Failed to ${action.toLowerCase()} request.`);
     }
@@ -98,7 +85,7 @@ export default function DoctorRequestsPage() {
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{req.appointmentTime}</div>
                     </td>
                     <td>
-                      <div style={{ fontWeight: '500', color: 'var(--text-main)' }}>Patient {req.patientId}</div>
+                      <div style={{ fontWeight: '500', color: 'var(--text-main)' }}>{req.patientName || `Patient ${req.patientId}`}</div>
                     </td>
                     <td>
                       <span className="badge badge-pending">{req.appointmentType || 'PHYSICAL'}</span>
