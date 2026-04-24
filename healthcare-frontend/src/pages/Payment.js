@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import api from "../services/api";
 import { CreditCard, CheckCircle, ShieldCheck } from "lucide-react";
 import toast from "react-hot-toast";
@@ -8,6 +8,7 @@ import "../components/DashboardShared.css";
 export default function Payment() {
   const { appointmentId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [appointment, setAppointment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -20,6 +21,11 @@ export default function Payment() {
   }, []);
 
   useEffect(() => {
+    // Check if we are returning from PayHere success
+    const params = new URLSearchParams(location.search);
+    const isSuccess = params.get("status") === "success";
+    const returnedPaymentId = params.get("paymentId");
+
     const fetchDetails = async () => {
       try {
         const apptRes = await api.get(`/appointments/${appointmentId}`);
@@ -30,6 +36,21 @@ export default function Payment() {
             const dRes = await api.get(`/doctors/${apptRes.data.doctorId}`);
             if (dRes.data?.consultationFee) setAmount(Number(dRes.data.consultationFee));
           } catch (e) { /* keep default */ }
+        }
+
+        // Handle PayHere Callback
+        if (isSuccess && returnedPaymentId) {
+          setPaymentStatus("PROCESSING");
+          try {
+            await api.put(`/payments/${returnedPaymentId}/status`, { status: "SUCCESS" });
+            await api.put(`/appointments/${appointmentId}/status`, { status: "PENDING" });
+            setPaymentStatus("SUCCESS");
+            toast.success("Payment successful — awaiting doctor confirmation");
+            setTimeout(() => navigate("/patient/dashboard/appointments"), 3000);
+            return; // Skip checking existing payments
+          } catch (err) {
+            console.error("Failed to verify payment via PayHere callback", err);
+          }
         }
 
         try {
@@ -49,13 +70,13 @@ export default function Payment() {
       }
     };
     fetchDetails();
-  }, [appointmentId, user.id]);
+  }, [appointmentId, user.id, location.search, navigate]);
 
-  const handlePayment = async (e) => {
-    e.preventDefault();
+  const handlePayHereCheckout = async () => {
     setPaymentStatus("PROCESSING");
     setError(null);
     try {
+      // 1. Create Payment Record locally as PENDING
       const payload = {
         appointmentId: Number(appointmentId),
         userId: user.id,
@@ -67,29 +88,62 @@ export default function Payment() {
 
       const res = await api.post("/payments", payload);
       const data = res.data || {};
+      const paymentId = data.paymentId || new Date().getTime();
 
-      // If real Stripe returned a clientSecret, confirm via Stripe (mock-safe fallback below)
-      if (data.stripeClientSecret && data.stripeClientSecret !== "mock_client_secret") {
-        // Real Stripe flow: frontend Stripe.js would confirm. For this mock UI we mark SUCCESS server-side.
-        try {
-          await api.put(`/payments/${data.paymentId}/status`, { status: "SUCCESS" });
-        } catch (e) {
-          throw new Error("Payment confirmation failed.");
-        }
+      // 2. Generate secure hash from backend
+      const hashRes = await api.post("/payments/payhere/hash", {
+        order_id: String(paymentId),
+        amount: String(amount),
+        currency: "LKR",
+      });
+      const { hash, merchant_id } = hashRes.data;
+
+      // 3. Prepare PayHere Form
+      const returnUrl = `${window.location.origin}/patient/dashboard/pay/${appointmentId}?status=success&paymentId=${paymentId}`;
+      const cancelUrl = `${window.location.origin}/patient/dashboard/pay/${appointmentId}?status=cancel`;
+      const notifyUrl = `https://healthcare.sandbox.notify/api/payments/notify`;
+
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = "https://sandbox.payhere.lk/pay/checkout";
+
+      const inputs = {
+        merchant_id: merchant_id,
+        return_url: returnUrl,
+        cancel_url: cancelUrl,
+        notify_url: notifyUrl,
+        order_id: String(paymentId),
+        items: `Consultation with Dr. ${appointment?.doctorName}`,
+        currency: "LKR",
+        amount: Number(amount).toFixed(2),
+        first_name: user?.name?.split(" ")[0] || "Patient",
+        last_name: user?.name?.split(" ")[1] || "Name",
+        email: user?.email || "patient@example.com",
+        phone: user?.mobileNumber || "0771234567",
+        address: "No. 1, Health Avenue",
+        city: "Colombo",
+        country: "Sri Lanka",
+        hash: hash,
+      };
+
+      console.log("PayHere Checkout Inputs:", inputs);
+
+      for (const key in inputs) {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = inputs[key];
+        form.appendChild(input);
       }
 
-      // Move appointment to PENDING so doctor can review
-      await api.put(`/appointments/${appointmentId}/status`, { status: "PENDING" });
+      document.body.appendChild(form);
+      form.submit();
 
-      setPaymentStatus("SUCCESS");
-      toast.success("Payment successful — awaiting doctor confirmation");
-
-      setTimeout(() => navigate("/patient/dashboard/appointments"), 2500);
     } catch (err) {
       console.error(err);
-      setError("Payment processing failed. Please try again.");
+      setError("Failed to initialize PayHere gateway. Please try again.");
       setPaymentStatus("PENDING");
-      toast.error("Payment failed");
+      toast.error("Initialization failed");
     }
   };
 
@@ -158,39 +212,25 @@ export default function Payment() {
 
             {error && <div style={{ color: "var(--danger)", marginBottom: "16px", fontSize: "0.9rem" }}>{error}</div>}
 
-            <form onSubmit={handlePayment}>
-              <div className="form-group">
-                <label className="form-label">Name on Card</label>
-                <input type="text" className="form-input" required placeholder="John Doe" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Card Number</label>
-                <div style={{ position: "relative" }}>
-                  <CreditCard size={18} style={{ position: "absolute", left: "12px", top: "11px", color: "var(--text-muted)" }} />
-                  <input type="text" className="form-input" required placeholder="4242 4242 4242 4242" style={{ paddingLeft: "38px" }} maxLength={19} />
-                </div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "24px" }}>
-                <div>
-                  <label className="form-label">Expiry</label>
-                  <input type="text" className="form-input" required placeholder="MM/YY" maxLength={5} />
-                </div>
-                <div>
-                  <label className="form-label">CVC</label>
-                  <input type="password" className="form-input" required placeholder="123" maxLength={4} />
-                </div>
-              </div>
-
-              <button type="submit" className="btn btn-primary" style={{ width: "100%", padding: "12px", fontSize: "1rem" }} disabled={paymentStatus === "PROCESSING"}>
-                {paymentStatus === "PROCESSING" ? "Processing..." : `Pay LKR ${formattedAmount}`}
+            <div style={{ textAlign: "center", margin: "24px 0" }}>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "16px" }}>
+                You will be securely redirected to PayHere (Sri Lanka) to complete your payment.
+              </p>
+              <button 
+                onClick={handlePayHereCheckout} 
+                className="btn btn-primary" 
+                style={{ width: "100%", padding: "12px", fontSize: "1rem", backgroundColor: "#0284c7", borderColor: "#0284c7" }} 
+                disabled={paymentStatus === "PROCESSING"}
+              >
+                {paymentStatus === "PROCESSING" ? "Processing..." : `Pay LKR ${formattedAmount} via PayHere`}
               </button>
+            </div>
 
-              <div style={{ textAlign: "center", marginTop: "16px" }}>
-                <button type="button" className="btn btn-outline" style={{ border: "none", color: "var(--text-muted)" }} onClick={() => navigate(-1)}>
-                  Cancel
-                </button>
-              </div>
-            </form>
+            <div style={{ textAlign: "center", marginTop: "16px" }}>
+              <button type="button" className="btn btn-outline" style={{ border: "none", color: "var(--text-muted)" }} onClick={() => navigate(-1)}>
+                Cancel
+              </button>
+            </div>
           </>
         )}
       </div>

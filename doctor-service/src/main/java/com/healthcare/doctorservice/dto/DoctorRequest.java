@@ -9,6 +9,7 @@ public class DoctorRequest {
     private String availability;
     private String hospital;
     private String consultationModes;
+    private Double consultationFee;
 
     public DoctorRequest() {
     }
@@ -75,5 +76,13 @@ public class DoctorRequest {
 
     public void setAvailability(String availability) {
         this.availability = availability;
+    }
+
+    public Double getConsultationFee() {
+        return consultationFee;
+    }
+
+    public void setConsultationFee(Double consultationFee) {
+        this.consultationFee = consultationFee;
     }
 }

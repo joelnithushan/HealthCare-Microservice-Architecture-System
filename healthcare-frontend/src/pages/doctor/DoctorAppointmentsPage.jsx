@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import { Calendar, Video, CheckCircle, XCircle } from "lucide-react";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import "../../components/DashboardShared.css";
 
 export default function DoctorAppointmentsPage() {
@@ -10,6 +11,7 @@ export default function DoctorAppointmentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState("CONFIRMED"); // CONFIRMED, ACCEPTED, COMPLETED, ALL
+  const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, action: null, apptId: null });
 
   const user = React.useMemo(() => {
     const stored = localStorage.getItem("user");
@@ -41,23 +43,22 @@ export default function DoctorAppointmentsPage() {
     fetchAppointments();
   }, [user.id, user.email]);
 
-  const handleMarkCompleted = async (apptId) => {
-    if (!window.confirm("Mark this appointment as COMPLETED?")) return;
-    try {
-      await api.put(`/appointments/${apptId}/status`, { status: "COMPLETED" });
-      setAppointments(prev => prev.map(a => a.id === apptId ? { ...a, status: "COMPLETED" } : a));
-    } catch (err) {
-      alert("Failed to update status.");
-    }
+  const handleActionClick = (apptId, action) => {
+    setConfirmConfig({ isOpen: true, action, apptId });
   };
 
-  const handleCancelClick = async (apptId) => {
-    if (!window.confirm("Cancel this confirmed appointment?")) return;
+  const executeAction = async () => {
+    const { apptId, action } = confirmConfig;
+    if (!apptId) return;
+    
+    setConfirmConfig({ isOpen: false, action: null, apptId: null });
+    
     try {
-      await api.put(`/appointments/${apptId}/status`, { status: "CANCELLED" });
-      setAppointments(prev => prev.map(a => a.id === apptId ? { ...a, status: "CANCELLED" } : a));
+      const newStatus = action === 'COMPLETED' ? 'COMPLETED' : 'CANCELLED';
+      await api.put(`/appointments/${apptId}/status`, { status: newStatus });
+      setAppointments(prev => prev.map(a => a.id === apptId ? { ...a, status: newStatus } : a));
     } catch (err) {
-      alert("Failed to cancel appointment.");
+      alert(`Failed to ${action.toLowerCase()} appointment.`);
     }
   };
 
@@ -154,12 +155,12 @@ export default function DoctorAppointmentsPage() {
                           </button>
                         )}
                         {(a.status === 'ACCEPTED' || a.status === 'CONFIRMED') && (
-                          <button className="btn btn-success" style={{ padding: '6px 10px', fontSize: '0.8rem' }} onClick={() => handleMarkCompleted(a.id)}>
+                          <button className="btn btn-success" style={{ padding: '6px 10px', fontSize: '0.8rem' }} onClick={() => handleActionClick(a.id, 'COMPLETED')}>
                             <CheckCircle size={14} /> Complete
                           </button>
                         )}
                         {(a.status === 'ACCEPTED' || a.status === 'CONFIRMED') && (
-                          <button className="btn btn-outline" style={{ padding: '6px 10px', fontSize: '0.8rem', color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => handleCancelClick(a.id)}>
+                          <button className="btn btn-outline" style={{ padding: '6px 10px', fontSize: '0.8rem', color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => handleActionClick(a.id, 'CANCEL')}>
                             <XCircle size={14} /> Cancel
                           </button>
                         )}
@@ -172,6 +173,16 @@ export default function DoctorAppointmentsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmConfig.isOpen}
+        title={confirmConfig.action === 'COMPLETED' ? 'Mark Completed' : 'Cancel Appointment'}
+        message={confirmConfig.action === 'COMPLETED' ? "Are you sure you want to mark this appointment as completed?" : "Are you sure you want to cancel this confirmed appointment?"}
+        confirmLabel={confirmConfig.action === 'COMPLETED' ? 'Mark Complete' : 'Cancel Appointment'}
+        tone={confirmConfig.action === 'COMPLETED' ? 'success' : 'danger'}
+        onConfirm={executeAction}
+        onCancel={() => setConfirmConfig({ isOpen: false, action: null, apptId: null })}
+      />
     </div>
   );
 }

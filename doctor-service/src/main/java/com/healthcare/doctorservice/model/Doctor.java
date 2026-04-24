@@ -41,6 +41,9 @@ public class Doctor {
 
     private LocalDateTime verifiedAt;
 
+    @Column(name = "consultation_fee")
+    private Double consultationFee;
+
     @Column(name = "profile_pic_url")
     private String profilePicUrl;
 
@@ -141,6 +144,14 @@ public class Doctor {
 
     public void setVerifiedAt(LocalDateTime verifiedAt) {
         this.verifiedAt = verifiedAt;
+    }
+
+    public Double getConsultationFee() {
+        return consultationFee;
+    }
+
+    public void setConsultationFee(Double consultationFee) {
+        this.consultationFee = consultationFee;
     }
 
     public String getProfilePicUrl() {

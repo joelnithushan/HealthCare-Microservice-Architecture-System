@@ -31,6 +31,11 @@ const DoctorManagement = () => {
   const [rejectTarget, setRejectTarget] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
 
+  // Fee update
+  const [feeTarget, setFeeTarget] = useState(null);
+  const [feeValue, setFeeValue] = useState("");
+  const [feeLoading, setFeeLoading] = useState(false);
+
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
@@ -162,6 +167,48 @@ const DoctorManagement = () => {
       toast.error("Failed to update status");
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleOpenFeeModal = async (doc) => {
+    setFeeTarget(doc);
+    setFeeValue("2500");
+    try {
+      const docRes = await api.get(`/doctors/email/${doc.email}`);
+      if (docRes.data && docRes.data.consultationFee) {
+        setFeeValue(docRes.data.consultationFee.toString());
+      }
+    } catch (e) {
+      // Ignored, default to 2500
+    }
+  };
+
+  const handleUpdateFee = async () => {
+    if (!feeTarget) return;
+    setFeeLoading(true);
+    try {
+      const docRes = await api.get(`/doctors/email/${feeTarget.email}`);
+      if (docRes.data && docRes.data.id) {
+        const req = {
+          name: docRes.data.name,
+          email: docRes.data.email,
+          specialization: docRes.data.specialization,
+          phone: docRes.data.phone,
+          availability: docRes.data.availability,
+          hospital: docRes.data.hospital,
+          consultationModes: docRes.data.consultationModes,
+          consultationFee: parseFloat(feeValue) || 2500.0,
+        };
+        await api.put(`/doctors/${docRes.data.id}`, req);
+        toast.success(`Fee updated successfully for Dr. ${feeTarget.name}`);
+        setFeeTarget(null);
+      } else {
+        toast.error("Doctor profile not fully registered yet.");
+      }
+    } catch (e) {
+      toast.error("Failed to update consultation fee");
+    } finally {
+      setFeeLoading(false);
     }
   };
 
@@ -532,15 +579,24 @@ const DoctorManagement = () => {
                     </button>
                   </>
                 ) : (
-                  <button
-                    className="admin-btn-danger"
-                    onClick={() => {
-                      setRejectTarget(doc);
-                      setRejectReason("");
-                    }}
-                  >
-                    Revoke Verification
-                  </button>
+                  <>
+                    <button
+                      className="admin-btn-primary"
+                      style={{ background: "#0284c7", borderColor: "#0284c7" }}
+                      onClick={() => handleOpenFeeModal(doc)}
+                    >
+                      Set Fee
+                    </button>
+                    <button
+                      className="admin-btn-danger"
+                      onClick={() => {
+                        setRejectTarget(doc);
+                        setRejectReason("");
+                      }}
+                    >
+                      Revoke Verification
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -776,6 +832,64 @@ const DoctorManagement = () => {
                   : rejectTarget.approved
                     ? "Revoke Verification"
                     : "Reject Verification"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Set Fee Modal */}
+      {feeTarget && (
+        <div
+          className="admin-modal-backdrop"
+          onClick={() => setFeeTarget(null)}
+        >
+          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header">
+              <h3 className="admin-modal-title">Set Consultation Fee</h3>
+              <button
+                className="admin-modal-close"
+                onClick={() => setFeeTarget(null)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ marginBottom: "16px" }}>
+              <p style={{ margin: "0 0 4px 0", fontSize: "15px", color: "var(--admin-text)" }}>
+                Adjust the base consultation fee for <strong>Dr. {feeTarget.name}</strong>.
+              </p>
+              <p style={{ margin: "8px 0 0", fontSize: "13px", color: "var(--admin-muted)" }}>
+                This amount will be charged to patients at checkout.
+              </p>
+            </div>
+
+            <div style={{ marginBottom: "24px" }}>
+              <label style={labelStyle}>FEE AMOUNT (LKR)</label>
+              <input
+                type="number"
+                className="admin-input large"
+                placeholder="2500"
+                value={feeValue}
+                min="0"
+                step="100"
+                onChange={(e) => setFeeValue(e.target.value)}
+              />
+            </div>
+
+            <div className="admin-modal-footer">
+              <button
+                className="admin-btn-cancel"
+                onClick={() => setFeeTarget(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="admin-btn-primary"
+                disabled={feeLoading || !feeValue}
+                onClick={handleUpdateFee}
+              >
+                {feeLoading ? "Saving..." : "Save Fee"}
               </button>
             </div>
           </div>

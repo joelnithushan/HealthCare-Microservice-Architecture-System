@@ -12,6 +12,7 @@ public class DoctorResponse {
     private String consultationModes;
     private boolean verified;
     private String profilePicUrl;
+    private Double consultationFee;
 
     public DoctorResponse() {
     }
@@ -104,5 +105,13 @@ public class DoctorResponse {
 
     public void setProfilePicUrl(String profilePicUrl) {
         this.profilePicUrl = profilePicUrl;
+    }
+
+    public Double getConsultationFee() {
+        return consultationFee;
+    }
+
+    public void setConsultationFee(Double consultationFee) {
+        this.consultationFee = consultationFee;
     }
 }

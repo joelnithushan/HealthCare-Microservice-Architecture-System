@@ -118,7 +118,18 @@ public class UserServiceImpl implements UserService {
             {"Dr. Mahen Samarasinghe", "mahen@mediconnect.com", "851234567V", "0771234567", "Psychiatrist", "Ninewells Hospital"},
             {"Dr. Lalith Abeysekara", "lalith@mediconnect.com", "601234567V", "0771234568", "General Practitioner", "Central Hospital"},
             {"Dr. Chamilka Fernando", "chamilka@mediconnect.com", "881234567V", "0771234569", "Ophthalmologist", "Eye Hospital Colombo"},
-            {"Dr. Nirosha Perera", "nirosha@mediconnect.com", "841234567V", "0771234570", "Obstetrician & Gynecologist", "Castle Street Hospital"}
+            {"Dr. Nirosha Perera", "nirosha@mediconnect.com", "841234567V", "0771234570", "Obstetrician & Gynecologist", "Castle Street Hospital"},
+            {"Dr. Harsha Wickramasinghe", "harsha@mediconnect.com", "811234567V", "0771234571", "Oncologist", "Maharagama Cancer Hospital"},
+            {"Dr. Asanga Peiris", "asanga@mediconnect.com", "791234567V", "0771234572", "Urologist", "Kings Hospital"},
+            {"Dr. Ruwanthi Senanayake", "ruwanthi@mediconnect.com", "831234567V", "0771234573", "Gastroenterologist", "Lanka Hospitals"},
+            {"Dr. Chamara Bandara", "chamara@mediconnect.com", "761234567V", "0771234574", "Endocrinologist", "Hemas Hospital"},
+            {"Dr. Dilini Jayawardena", "dilini@mediconnect.com", "871234567V", "0771234575", "Pulmonologist", "Asiri Central Hospital"},
+            {"Dr. Shantha Kumara", "shantha@mediconnect.com", "691234567V", "0771234576", "Rheumatologist", "Durdans Hospital"},
+            {"Dr. Sanjeewa Silva", "sanjeewa@mediconnect.com", "741234567V", "0771234577", "Nephrologist", "Nawaloka Hospital"},
+            {"Dr. Kamal Fernando", "kamal@mediconnect.com", "711234567V", "0771234578", "General Surgeon", "Lanka Hospitals"},
+            {"Dr. Malini Dias", "malini@mediconnect.com", "861234567V", "0771234579", "Dental Surgeon", "Kings Hospital"},
+            {"Dr. Nalin Perera", "nalin@mediconnect.com", "781234567V", "0771234580", "Physiotherapist", "Hemas Hospital"},
+            {"Dr. Saman Wijesinghe", "saman@mediconnect.com", "731234567V", "0771234581", "General Physician", "MediConnect Central"}
         };
 
         for (String[] data : doctorData) {

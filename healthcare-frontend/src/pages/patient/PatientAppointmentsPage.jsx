@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import { Calendar, Video, CreditCard, XCircle } from "lucide-react";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import "../../components/DashboardShared.css";
 
 export default function PatientAppointmentsPage() {
@@ -11,38 +12,59 @@ export default function PatientAppointmentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState("UPCOMING"); // UPCOMING, PENDING, ACCEPTED, CANCELLED, COMPLETED, ALL
+  const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, apptId: null });
   
   const user = React.useMemo(() => {
     const stored = localStorage.getItem("user");
     return stored && stored !== "undefined" ? JSON.parse(stored) : null;
   }, []);
 
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      try {
-        const [apptsRes, paysRes] = await Promise.allSettled([
-          api.get(`/appointments/user/${user.id}`),
-          api.get(`/payments/user/${user.id}`)
-        ]);
+  const fetchAppointments = async (showLoading = false) => {
+    if (showLoading) setLoading(true);
+    try {
+      const [apptsRes, paysRes] = await Promise.allSettled([
+        api.get(`/appointments/user/${user.id}`),
+        api.get(`/payments/user/${user.id}`)
+      ]);
 
-        let fetchedAppts = apptsRes.status === 'fulfilled' ? apptsRes.value.data : [];
-        let fetchedPays = paysRes.status === 'fulfilled' ? paysRes.value.data : [];
-        
-        fetchedAppts.sort((a, b) => new Date(b.appointmentDate) - new Date(a.appointmentDate)); // newest first
-        setAppointments(fetchedAppts);
-        setPayments(fetchedPays);
-      } catch (err) {
-        console.error(err);
-        setError("Failed to load your appointments.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAppointments();
+      let fetchedAppts = apptsRes.status === 'fulfilled' ? apptsRes.value.data : [];
+      let fetchedPays = paysRes.status === 'fulfilled' ? paysRes.value.data : [];
+      
+      fetchedAppts.sort((a, b) => new Date(b.appointmentDate) - new Date(a.appointmentDate)); // newest first
+      setAppointments(fetchedAppts);
+      setPayments(fetchedPays);
+      setError(null); // Clear error on success
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load your appointments.");
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    // Initial fetch with loading state
+    fetchAppointments(true);
+
+    // Polling for real-time updates every 10 seconds
+    const intervalId = setInterval(() => {
+      fetchAppointments(false);
+    }, 10000);
+
+    return () => clearInterval(intervalId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id]);
 
-  const handleCancelClick = async (apptId) => {
-    if (!window.confirm("Are you sure you want to cancel this appointment?")) return;
+  const handleCancelClick = (apptId) => {
+    setConfirmConfig({ isOpen: true, apptId });
+  };
+
+  const executeCancel = async () => {
+    const { apptId } = confirmConfig;
+    if (!apptId) return;
+    setConfirmConfig({ isOpen: false, apptId: null });
     try {
       await api.put(`/appointments/${apptId}/status`, { status: 'CANCELLED' });
       setAppointments(prev => prev.map(a => a.id === apptId ? { ...a, status: 'CANCELLED' } : a));
@@ -182,6 +204,16 @@ export default function PatientAppointmentsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmConfig.isOpen}
+        title="Cancel Appointment"
+        message="Are you sure you want to cancel this appointment?"
+        confirmLabel="Yes, Cancel"
+        tone="danger"
+        onConfirm={executeCancel}
+        onCancel={() => setConfirmConfig({ isOpen: false, apptId: null })}
+      />
     </div>
   );
 }

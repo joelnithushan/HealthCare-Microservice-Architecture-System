@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import api from "../../services/api";
 import { FileUp, FileText, Download, Trash2, AlertCircle, ChevronLeft, Activity } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import "../../components/DashboardShared.css";
 
 export default function PatientReportsPage() {
@@ -22,6 +23,7 @@ export default function PatientReportsPage() {
   const [previewReport, setPreviewReport] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [deleteConfig, setDeleteConfig] = useState({ isOpen: false, reportId: null });
 
   const user = React.useMemo(() => {
     const stored = localStorage.getItem("user");
@@ -146,8 +148,14 @@ export default function PatientReportsPage() {
     }
   };
 
-  const handleDelete = async (reportId) => {
-    if (!window.confirm("Are you sure you want to delete this report?")) return;
+  const handleDeleteClick = (reportId) => {
+    setDeleteConfig({ isOpen: true, reportId });
+  };
+
+  const executeDelete = async () => {
+    const { reportId } = deleteConfig;
+    if (!reportId) return;
+    setDeleteConfig({ isOpen: false, reportId: null });
     try {
       await api.delete(`/users/reports/${reportId}`);
       setReports(reports.filter(r => r.id !== reportId));
@@ -259,7 +267,7 @@ export default function PatientReportsPage() {
                         <Download size={16} />
                       </button>
                       {!isDoctorViewing && (
-                        <button className="btn btn-outline" style={{ padding: "8px", color: "var(--danger)", borderColor: "var(--danger)" }} title="Delete" onClick={() => handleDelete(report.id)}>
+                        <button className="btn btn-outline" style={{ padding: "8px", color: "var(--danger)", borderColor: "var(--danger)" }} title="Delete" onClick={() => handleDeleteClick(report.id)}>
                           <Trash2 size={16} />
                         </button>
                       )}
@@ -305,6 +313,16 @@ export default function PatientReportsPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteConfig.isOpen}
+        title="Delete Report"
+        message="Are you sure you want to delete this medical report? This action cannot be undone."
+        confirmLabel="Delete Report"
+        tone="danger"
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteConfig({ isOpen: false, reportId: null })}
+      />
     </div>
   );
 }

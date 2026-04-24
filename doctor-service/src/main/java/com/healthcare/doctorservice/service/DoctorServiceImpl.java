@@ -33,7 +33,18 @@ public class DoctorServiceImpl implements DoctorService {
             {"Dr. Mahen Samarasinghe", "mahen@mediconnect.com", "Psychiatrist", "0771234567", "Sun (9 AM - 2 PM)", "Lanka Hospitals", "VIDEO"},
             {"Dr. Lalith Abeysekara", "lalith@mediconnect.com", "General Practitioner", "0771234568", "Daily (6 PM - 9 PM)", "Durdans Hospital", "PHYSICAL,VIDEO"},
             {"Dr. Chamilka Fernando", "chamilka@mediconnect.com", "Ophthalmologist", "0771234569", "Mon, Thu (9 AM - 12 PM)", "Asiri Central Hospital", "PHYSICAL"},
-            {"Dr. Nirosha Perera", "nirosha@mediconnect.com", "Obstetrician & Gynecologist", "0771234570", "Tue, Sat (10 AM - 4 PM)", "Nawaloka Hospital", "PHYSICAL,VIDEO"}
+            {"Dr. Nirosha Perera", "nirosha@mediconnect.com", "Obstetrician & Gynecologist", "0771234570", "Tue, Sat (10 AM - 4 PM)", "Nawaloka Hospital", "PHYSICAL,VIDEO"},
+            {"Dr. Harsha Wickramasinghe", "harsha@mediconnect.com", "Oncologist", "0771234571", "Wed, Fri (8 AM - 1 PM)", "Maharagama Cancer Hospital", "PHYSICAL,VIDEO"},
+            {"Dr. Asanga Peiris", "asanga@mediconnect.com", "Urologist", "0771234572", "Mon, Thu (3 PM - 7 PM)", "Kings Hospital", "PHYSICAL"},
+            {"Dr. Ruwanthi Senanayake", "ruwanthi@mediconnect.com", "Gastroenterologist", "0771234573", "Tue, Sun (10 AM - 2 PM)", "Lanka Hospitals", "PHYSICAL,VIDEO"},
+            {"Dr. Chamara Bandara", "chamara@mediconnect.com", "Endocrinologist", "0771234574", "Mon, Wed, Fri (4 PM - 8 PM)", "Hemas Hospital", "VIDEO"},
+            {"Dr. Dilini Jayawardena", "dilini@mediconnect.com", "Pulmonologist", "0771234575", "Tue, Thu (9 AM - 1 PM)", "Asiri Central Hospital", "PHYSICAL,VIDEO"},
+            {"Dr. Shantha Kumara", "shantha@mediconnect.com", "Rheumatologist", "0771234576", "Mon, Sat (2 PM - 6 PM)", "Durdans Hospital", "PHYSICAL"},
+            {"Dr. Sanjeewa Silva", "sanjeewa@mediconnect.com", "Nephrologist", "0771234577", "Wed, Sat (8 AM - 12 PM)", "Nawaloka Hospital", "PHYSICAL,VIDEO"},
+            {"Dr. Kamal Fernando", "kamal@mediconnect.com", "General Surgeon", "0771234578", "Tue, Thu, Sat (5 PM - 9 PM)", "Lanka Hospitals", "PHYSICAL"},
+            {"Dr. Malini Dias", "malini@mediconnect.com", "Dental Surgeon", "0771234579", "Mon to Fri (10 AM - 4 PM)", "Kings Hospital", "PHYSICAL"},
+            {"Dr. Nalin Perera", "nalin@mediconnect.com", "Physiotherapist", "0771234580", "Daily (7 AM - 11 AM)", "Hemas Hospital", "PHYSICAL,VIDEO"},
+            {"Dr. Saman Wijesinghe", "saman@mediconnect.com", "General Physician", "0771234581", "Daily (8 AM - 8 PM)", "MediConnect Central", "PHYSICAL,VIDEO"}
         };
 
         for (String[] data : doctorData) {
@@ -96,6 +107,7 @@ public class DoctorServiceImpl implements DoctorService {
                 ? request.getHospital() : "MediConnect Central");
         doctor.setConsultationModes(request.getConsultationModes() != null && !request.getConsultationModes().isBlank()
                 ? request.getConsultationModes() : "PHYSICAL,VIDEO");
+        doctor.setConsultationFee(request.getConsultationFee() != null ? request.getConsultationFee() : 2500.0);
 
         Doctor saved = doctorRepository.save(doctor);
         return mapToResponse(saved);
@@ -140,6 +152,9 @@ public class DoctorServiceImpl implements DoctorService {
         }
         if (request.getConsultationModes() != null && !request.getConsultationModes().isBlank()) {
             doctor.setConsultationModes(request.getConsultationModes());
+        }
+        if (request.getConsultationFee() != null) {
+            doctor.setConsultationFee(request.getConsultationFee());
         }
 
         Doctor updated = doctorRepository.save(doctor);
@@ -236,6 +251,7 @@ public class DoctorServiceImpl implements DoctorService {
         response.setAvailability(doctor.getAvailability());
         response.setHospital(doctor.getHospital());
         response.setConsultationModes(doctor.getConsultationModes());
+        response.setConsultationFee(doctor.getConsultationFee() != null ? doctor.getConsultationFee() : 2500.0);
         response.setVerified(doctor.isVerified());
         if (doctor.getProfileImageData() != null) {
             response.setProfilePicUrl(doctor.getProfilePicUrl());

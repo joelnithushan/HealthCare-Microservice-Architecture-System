@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { Video, PhoneOff, ShieldAlert, Clock } from "lucide-react";
 import toast from "react-hot-toast";
+import ConfirmDialog from "../components/ConfirmDialog";
 import "../components/DashboardShared.css";
 
 export default function VideoConsultation() {
@@ -12,6 +13,7 @@ export default function VideoConsultation() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [ending, setEnding] = useState(false);
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
 
   const user = useMemo(() => {
     const stored = localStorage.getItem("user");
@@ -64,8 +66,12 @@ export default function VideoConsultation() {
     ? "/doctor/dashboard/doctor-appointments"
     : "/patient/dashboard/appointments";
 
-  const endCall = async () => {
-    if (!window.confirm("End this consultation? The appointment will be marked COMPLETED.")) return;
+  const handleEndClick = () => {
+    setShowEndConfirm(true);
+  };
+
+  const executeEndCall = async () => {
+    setShowEndConfirm(false);
     setEnding(true);
     try {
       await api.put(`/appointments/${appointmentId}/status`, { status: "COMPLETED" });
@@ -169,7 +175,7 @@ export default function VideoConsultation() {
           </div>
         </div>
         <button
-          onClick={endCall}
+          onClick={handleEndClick}
           disabled={ending}
           className="btn btn-danger"
           style={{ display: "flex", alignItems: "center", gap: "8px", backgroundColor: "var(--danger)", color: "#fff", border: "none", padding: "10px 16px", borderRadius: "var(--radius-md)", cursor: ending ? "not-allowed" : "pointer" }}
@@ -192,6 +198,16 @@ export default function VideoConsultation() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={showEndConfirm}
+        title="End Consultation"
+        message="End this consultation? The appointment will be marked as COMPLETED and the video session will close."
+        confirmLabel="End Call"
+        tone="danger"
+        onConfirm={executeEndCall}
+        onCancel={() => setShowEndConfirm(false)}
+      />
     </div>
   );
 }
