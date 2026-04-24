@@ -22,13 +22,17 @@ public class PayHereHashController {
     @Value("${payhere.merchant.secret:}")
     private String merchantSecret;
 
+    /**
+     * Generates a secure MD5 hash required by PayHere to verify the transaction.
+     * This prevents tampering with payment amounts or order IDs.
+     */
     @PostMapping("/hash")
     public ResponseEntity<Map<String, String>> generateHash(@RequestBody Map<String, String> request) {
         String orderId = request.get("order_id");
         String amountStr = request.get("amount");
         String currency = request.getOrDefault("currency", "LKR");
 
-        // Format amount: PayHere Checkout API (LKR) usually expects 2 decimals.
+        // PayHere requires exactly 2 decimal places (e.g., 3000.00) for the hash to match.
         double amountDouble = Double.parseDouble(amountStr);
         String formattedAmount = String.format(Locale.US, "%.2f", amountDouble);
 
@@ -38,7 +42,8 @@ public class PayHereHashController {
         // MD5 of Secret (Uppercase)
         String secretHash = md5(effectiveSecret).toUpperCase();
         
-        // Final string: merchant_id + order_id + amount + currency + Upper(MD5(merchant_secret))
+        // The security signature is built by joining specific fields with an MD5-hashed secret.
+        // Formula: MD5(MerchantID + OrderID + Amount + Currency + MD5(Secret).toUpperCase())
         String rawHash = merchantId.trim() + orderId.trim() + formattedAmount + currency.trim() + secretHash;
         String hash = md5(rawHash).toUpperCase();
 

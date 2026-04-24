@@ -26,6 +26,7 @@ export default function Payment() {
     const isSuccess = params.get("status") === "success";
     const returnedPaymentId = params.get("paymentId");
 
+    // This effect runs on mount and also handles return callbacks from PayHere.
     const fetchDetails = async () => {
       try {
         const apptRes = await api.get(`/appointments/${appointmentId}`);
@@ -35,10 +36,10 @@ export default function Payment() {
           try {
             const dRes = await api.get(`/doctors/${apptRes.data.doctorId}`);
             if (dRes.data?.consultationFee) setAmount(Number(dRes.data.consultationFee));
-          } catch (e) { /* keep default */ }
+          } catch (e) { /* keep default if fee check fails */ }
         }
 
-        // Handle PayHere Callback
+        // If we are returning from a successful PayHere transaction, update the backend status.
         if (isSuccess && returnedPaymentId) {
           setPaymentStatus("PROCESSING");
           try {
@@ -47,12 +48,13 @@ export default function Payment() {
             setPaymentStatus("SUCCESS");
             toast.success("Payment successful — awaiting doctor confirmation");
             setTimeout(() => navigate("/patient/dashboard/appointments"), 3000);
-            return; // Skip checking existing payments
+            return;
           } catch (err) {
             console.error("Failed to verify payment via PayHere callback", err);
           }
         }
 
+        // Check if a successful payment already exists for this appointment to prevent double-charging.
         try {
           const payRes = await api.get(`/payments/user/${user.id}`);
           const existing = payRes.data.find(
@@ -61,7 +63,7 @@ export default function Payment() {
           if (existing && existing.status === "SUCCESS") {
             setPaymentStatus("SUCCESS");
           }
-        } catch (e) { /* ignore */ }
+        } catch (e) { /* ignore error during duplicate check */ }
       } catch (err) {
         console.error(err);
         setError("Failed to load appointment details.");
@@ -72,6 +74,12 @@ export default function Payment() {
     fetchDetails();
   }, [appointmentId, user.id, location.search, navigate]);
 
+  /**
+   * Orchestrates the secure PayHere checkout flow.
+   * 1. Creates a pending record in our local database.
+   * 2. Fetches a secure MD5 signature from our backend.
+   * 3. Submits a hidden form to PayHere Sandbox.
+   */
   const handlePayHereCheckout = async () => {
     setPaymentStatus("PROCESSING");
     setError(null);
