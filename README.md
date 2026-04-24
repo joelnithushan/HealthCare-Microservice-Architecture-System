@@ -1,57 +1,85 @@
-# Smart Healthcare Appointment and Telemedicine Platform
+# 🏥 MediConnect: Enterprise-Grade Microservices Healthcare Platform
 
-This project is a cloud-native healthcare ecosystem built using a microservices architecture. It enables patients to book appointments, consult with doctors via video, and manage their medical history, while providing doctors and administrators with robust management tools.
+MediConnect is a cutting-edge, cloud-native healthcare ecosystem designed to bridge the gap between patients and specialized medical care. Built with a robust **Microservices Architecture**, the platform provides a seamless end-to-end experience for appointments, secure telemedicine consultations, and clinical data management.
 
-## Architecture Overview
+---
 
-The system is composed of several independent microservices, orchestrated via an API Gateway and a centralized PostgreSQL database (using schema-per-service isolation).
+## 🏗️ Architecture & Services
 
-- **User Service**: Manages patient and doctor profiles, authentication (JWT), and role-based access control.
-- **Doctor Service**: Handles doctor schedules, specializations, and digital prescriptions.
-- **Appointment Service**: Orchestrates the booking lifecycle, including status tracking and reminders.
-- **Telemedicine Service**: Provides secure video consultation rooms integrated with Jitsi Meet.
-- **Payment Service**: Handles secure financial transactions using Stripe.
-- **Notification Service**: Manages multi-channel communication via Email (SMTP) and SMS (Notify.lk).
-- **AI Symptom Checker**: An optional service integrated with Google Gemini AI to provide preliminary health suggestions.
-- **API Gateway**: The entry point for the frontend, handling routing and security.
+The platform utilizes a **distributed microservices architecture**, ensuring high availability, independent scalability, and fault tolerance.
 
-## Core Features
+### **The Service Map**
+- 🛡️ **API Gateway**: Single entry point handling secure routing and cross-origin policies.
+- 👤 **User Service**: Manages complex identity lifecycle, JWT authentication, and role-based permissions.
+- 👨‍⚕️ **Doctor Service**: Handles professional verification, specialized scheduling, and profile management.
+- 📅 **Appointment Service**: Orchestrates the booking lifecycle with automated status transitions.
+- 💳 **Payment Service**: Secure financial engine integrated with **PayHere**, featuring server-side hash verification.
+- 📹 **Telemedicine Service**: Encrypted video consultation rooms powered by **Jitsi Meet**.
+- 🔔 **Notification Service**: Real-time patient engagement via **SMTP (Email)** and **Notify.lk (SMS)**.
+- 🧠 **AI Symptom Checker**: Intelligent preliminary analysis powered by **Google Gemini AI**.
 
-- **Patient Portal**: Browse verified doctors, book appointments, attend video sessions, and upload medical reports.
-- **Doctor Dashboard**: Manage availability, accept/reject requests, conduct consultations, and issue digital prescriptions.
-- **Admin Panel**: Verify doctor registrations, manage users, and oversee platform transactions.
-- **AI Integration**: AI-powered symptom analysis to suggest relevant medical specialties.
-- **Real-time Notifications**: Automated SMS and Email reminders for upcoming consultations and status updates.
+---
 
-## Getting Started
+## ✨ Key Features
 
-### Prerequisites
+### **For Patients**
+- **Smart Discovery**: Find verified doctors based on specialty, rating, and availability.
+- **Secure Checkout**: Seamless card payments with PayHere sandbox integration.
+- **Clinical History**: Upload and manage medical reports with secure doctor-patient previews.
+- **Premium UI**: A glassmorphism-inspired interface with custom branded dialogs and smooth transitions.
 
-- Docker and Docker Compose
-- Java 17+ (for local development)
-- Node.js (for frontend development)
+### **For Doctors**
+- **Request Management**: Streamlined dashboard to approve or reschedule appointment requests.
+- **Virtual Clinic**: One-click video consultations directly from the dashboard.
+- **Professional Verification**: Automated registration workflow with administrative oversight.
 
-### Deployment with Docker
+### **For Administrators**
+- **Operational Oversight**: Monitor platform-wide transactions and user growth.
+- **Doctor Verification**: Secure audit trail for professional credential approval.
 
-The easiest way to run the entire platform is using Docker Compose.
+---
 
-1. Clone the repository.
-2. Create a `.env` file in the root directory based on `.env.example`.
-3. Run the following command:
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+| :--- | :--- |
+| **Backend** | Spring Boot 3, Spring Security, Spring Data JPA |
+| **Frontend** | React 18, Vanilla CSS3 (Custom Design System) |
+| **Database** | PostgreSQL (Per-service Schema Isolation) |
+| **Security** | JWT, PayHere MD5 Hashing, CORS Gateway Filters |
+| **Infrastructure** | Docker, Docker Compose, Nginx |
+
+---
+
+## 🚀 Getting Started
+
+### **Prerequisites**
+- **Docker & Docker Compose** (Recommended)
+- **Java 17 & Node.js 18+** (For local development)
+
+### **One-Command Deployment**
+1. **Clone the project**:
    ```bash
-   docker-compose up -d --build
+   git clone https://github.com/joelnithushan/Healthcare-Microservices-Platform.git
+   cd Healthcare-Microservices-Platform
    ```
-4. Access the application:
-   - Frontend: `http://localhost:3000`
-   - API Gateway: `http://localhost:8080`
+2. **Environment Setup**:
+   - Create a `.env` file in the root directory.
+   - Populate it with your `PAYHERE_MERCHANT_ID`, `PAYHERE_MERCHANT_SECRET`, and `GEMINI_API_KEY`.
+3. **Launch the Ecosystem**:
+   ```bash
+   docker compose up -d --build
+   ```
+4. **Access the Portals**:
+   - **Frontend**: [http://localhost:3000](http://localhost:3000)
+   - **Gateway/API**: [http://localhost:8080](http://localhost:8080)
 
-## Tech Stack
+---
 
-- **Backend**: Spring Boot, Spring Cloud Gateway, PostgreSQL
-- **Frontend**: React.js, Vanilla CSS
-- **Infrastructure**: Docker, Kubernetes (ready)
-- **Third-party Integrations**: Stripe (Payments), Notify.lk (SMS), Jitsi Meet (Video), Gemini AI (Symptom Analysis)
+## 🔒 Security & Performance
+- **Signature Integrity**: All payments are protected by a server-side MD5 hash signature.
+- **JWT Protection**: Stateless authentication ensures secure communication between services.
+- **Optimized UI**: High-performance React components with lazy loading and optimized asset delivery.
 
-## Development
-
-Each service is located in its own directory and contains its own `Dockerfile` and `pom.xml`. To run a specific service locally, ensure the database and gateway are active and configure the service to point to `localhost`.
+---
+*Developed with ❤️ as a modern healthcare solution.*
