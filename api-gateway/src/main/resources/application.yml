@@ -28,6 +28,10 @@ spring:
             - Path=/api/users/**
           filters:
             - StripPrefix=1
+            - name: CircuitBreaker
+              args:
+                name: userServiceCB
+                fallbackUri: forward:/fallback/user-service
 
         # Doctor Service
         - id: doctor-service-v1
@@ -42,6 +46,10 @@ spring:
             - Path=/api/doctors/**
           filters:
             - StripPrefix=1
+            - name: CircuitBreaker
+              args:
+                name: doctorServiceCB
+                fallbackUri: forward:/fallback/doctor-service
 
         # Appointment Service
         - id: appointment-service-v1
@@ -56,20 +64,28 @@ spring:
             - Path=/api/appointments/**
           filters:
             - StripPrefix=1
+            - name: CircuitBreaker
+              args:
+                name: appointmentServiceCB
+                fallbackUri: forward:/fallback/appointment-service
 
         # Notification Service
-        - id: notification-service-v1
-          uri: http://${NOTIFICATION_SERVICE_HOST:localhost}:8084
-          predicates:
-            - Path=/api/v1/notifications/**
-          filters:
-            - StripPrefix=2
         - id: notification-service-direct
           uri: http://${NOTIFICATION_SERVICE_HOST:localhost}:8084
           predicates:
             - Path=/api/notifications/**
           filters:
             - StripPrefix=1
+            - name: CircuitBreaker
+              args:
+                name: notificationServiceCB
+                fallbackUri: forward:/fallback/notification-service
+
+        - id: notification-websocket
+          uri: http://${NOTIFICATION_SERVICE_HOST:localhost}:8084
+          predicates:
+            - Path=/ws/**
+
 
         # Payment Service
         - id: payment-service-v1
@@ -84,6 +100,10 @@ spring:
             - Path=/api/payments/**
           filters:
             - StripPrefix=1
+            - name: CircuitBreaker
+              args:
+                name: paymentServiceCB
+                fallbackUri: forward:/fallback/payment-service
 
         # Prescription Service
         - id: prescription-service-direct
@@ -155,3 +175,41 @@ spring:
 
 jwt:
   secret: ${JWT_SECRET}
+
+# ─── Resilience4j Circuit Breaker Configuration ───
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10000
+        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowType: COUNT_BASED
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+    instances:
+      userServiceCB:
+        baseConfig: default
+      doctorServiceCB:
+        baseConfig: default
+      appointmentServiceCB:
+        baseConfig: default
+      notificationServiceCB:
+        baseConfig: default
+      paymentServiceCB:
+        baseConfig: default
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 4s
+
+# ─── Actuator Endpoints ───
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,circuitbreakers,circuitbreakerevents
+  health:
+    circuitbreakers:
+      enabled: true

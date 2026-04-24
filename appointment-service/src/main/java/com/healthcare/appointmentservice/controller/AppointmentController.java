@@ -98,6 +98,28 @@ public class AppointmentController {
         return ResponseEntity.ok(appointmentService.updateAppointment(id, request));
     }
 
+    @PutMapping("/{id}/reschedule")
+    public ResponseEntity<AppointmentResponse> rescheduleAppointment(@PathVariable Long id,
+            @RequestBody java.util.Map<String, String> request) {
+        AppointmentResponse current = appointmentService.getAppointmentById(id);
+        validatePatientOwnershipForMutation(current);
+        
+        LocalDate newDate = LocalDate.parse(request.get("newDate"));
+        LocalTime newTime = LocalTime.parse(request.get("newTimeSlot"));
+        
+        return ResponseEntity.ok(appointmentService.rescheduleAppointment(id, newDate, newTime));
+    }
+    
+    @GetMapping("/check-availability")
+    public ResponseEntity<java.util.Map<String, Boolean>> checkAvailability(
+            @RequestParam Long doctorId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime timeSlot) {
+        
+        boolean isAvailable = appointmentService.checkAvailability(doctorId, date, timeSlot);
+        return ResponseEntity.ok(java.util.Map.of("available", isAvailable));
+    }
+
     @PutMapping("/{id}/status")
     public ResponseEntity<AppointmentResponse> updateAppointmentStatus(@PathVariable Long id,
             @RequestBody java.util.Map<String, String> request) {

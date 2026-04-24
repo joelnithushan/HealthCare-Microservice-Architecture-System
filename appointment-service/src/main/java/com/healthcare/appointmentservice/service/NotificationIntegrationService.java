@@ -10,6 +10,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+
 @Service
 public class NotificationIntegrationService {
 
@@ -28,11 +32,19 @@ public class NotificationIntegrationService {
         DoctorContactResponse doctor = fetchDoctor(appointment.getDoctorId());
         UserContactResponse patient = fetchUser(appointment.getPatientId());
         String patientName = patient != null && patient.getName() != null ? patient.getName() : ("Patient #" + appointment.getPatientId());
-        String subject = "New Appointment Request";
+        String subject = "New Appointment Request - " + patientName;
         String message = String.format(
-                "New appointment request #%d from %s on %s at %s. Please review and accept or reject it.",
+                "Hello Dr. %s,\n\nYou have a new appointment request (#%d) from %s.\n\n" +
+                "Date: %s\n" +
+                "Time: %s\n" +
+                "Type: %s\n" +
+                "Location: %s\n\n" +
+                "Please log in to your dashboard to review and manage this request.",
+                (doctor != null ? doctor.getName() : "Doctor"),
                 appointment.getId(), patientName,
-                appointment.getAppointmentDate(), appointment.getAppointmentTime());
+                appointment.getAppointmentDate(), appointment.getAppointmentTime(),
+                appointment.getAppointmentType(),
+                (doctor != null && doctor.getHospital() != null ? doctor.getHospital() : "Clinexa Virtual Clinic"));
         sendToDoctor(doctor, appointment.getDoctorId(), subject, message);
     }
 
@@ -44,42 +56,57 @@ public class NotificationIntegrationService {
 
         String subject;
         String message;
+        String dateStr = appointment.getAppointmentDate().toString();
+        String timeStr = appointment.getAppointmentTime().toString();
+        String hospital = (doctor != null && doctor.getHospital() != null) ? doctor.getHospital() : "Clinexa Virtual Clinic";
+
         switch (current) {
             case ACCEPTED -> {
-                subject = "Appointment Accepted";
+                subject = "Appointment Accepted - Clinexa";
                 message = String.format(
-                        "Dr. %s has accepted your appointment #%d on %s at %s. Please proceed to payment to confirm.",
-                        doctorName, appointment.getId(),
-                        appointment.getAppointmentDate(), appointment.getAppointmentTime());
+                        "Great news! Dr. %s has accepted your appointment request #%d.\n\n" +
+                        "Scheduled For: %s at %s\n" +
+                        "Location: %s\n\n" +
+                        "Please complete your payment soon to finalize the booking and secure your slot.",
+                        doctorName, appointment.getId(), dateStr, timeStr, hospital);
             }
             case REJECTED -> {
-                subject = "Appointment Rejected";
+                subject = "Appointment Update: Request Declined";
                 message = String.format(
-                        "Dr. %s has rejected your appointment request #%d on %s at %s.",
-                        doctorName, appointment.getId(),
-                        appointment.getAppointmentDate(), appointment.getAppointmentTime());
+                        "We regret to inform you that Dr. %s is unable to fulfill your appointment request #%d on %s at %s. " +
+                        "You may try booking another slot or another doctor.",
+                        doctorName, appointment.getId(), dateStr, timeStr);
             }
             case CONFIRMED -> {
-                subject = "Appointment Confirmed";
+                subject = "Appointment Confirmed - " + doctorName;
                 message = String.format(
-                        "Payment received. Your appointment #%d with Dr. %s on %s at %s is confirmed.",
-                        appointment.getId(), doctorName,
-                        appointment.getAppointmentDate(), appointment.getAppointmentTime());
+                        "Payment Successful! Your appointment #%d with Dr. %s is now confirmed.\n\n" +
+                        "Date: %s\n" +
+                        "Time: %s\n" +
+                        "Location: %s\n" +
+                        "Type: %s\n\n" +
+                        "Thank you for choosing Clinexa.",
+                        appointment.getId(), doctorName, dateStr, timeStr, hospital, appointment.getAppointmentType());
             }
             case COMPLETED -> {
-                subject = "Appointment Completed";
+                subject = "Consultation Summary - Appointment #" + appointment.getId();
                 message = String.format(
-                        "Appointment #%d with Dr. %s has been marked as completed.",
-                        appointment.getId(), doctorName);
+                        "Your consultation with Dr. %s has been completed. " +
+                        "You can now view your digital prescription and medical notes in your dashboard.",
+                        doctorName);
             }
             default -> {
                 subject = "Appointment Status Updated";
                 message = String.format(
-                        "Appointment #%d status changed from %s to %s.",
-                        appointment.getId(), previousStatus.name(), current.name());
+                        "The status of your appointment #%d with Dr. %s has been updated from %s to %s.",
+                        appointment.getId(), doctorName, previousStatus.name(), current.name());
             }
         }
         sendToPatient(patient, appointment.getPatientId(), subject, message);
+        
+        // Real-time WebSocket Push
+        sendWebSocketNotification(appointment.getPatientId(), "APPOINTMENT_STATUS", appointment.getId(), current.name(), message);
+        sendWebSocketNotification(appointment.getDoctorId(), "APPOINTMENT_STATUS", appointment.getId(), current.name(), "Status changed to " + current.name());
     }
 
     public void notifyAppointmentCancelled(Appointment appointment) {
@@ -91,6 +118,33 @@ public class NotificationIntegrationService {
                 appointment.getAppointmentDate(),
                 appointment.getAppointmentTime());
         sendToDoctor(doctor, appointment.getDoctorId(), subject, message);
+    }
+
+    public void notifyAppointmentRescheduled(Appointment appointment) {
+        DoctorContactResponse doctor = fetchDoctor(appointment.getDoctorId());
+        UserContactResponse patient = fetchUser(appointment.getPatientId());
+        
+        // Notify Doctor
+        String doctorSubject = "Appointment Rescheduled";
+        String doctorMessage = String.format(
+                "Appointment #%d rescheduled by patient to %s at %s.",
+                appointment.getId(),
+                appointment.getAppointmentDate(),
+                appointment.getAppointmentTime());
+        sendToDoctor(doctor, appointment.getDoctorId(), doctorSubject, doctorMessage);
+        
+        // Notify Patient
+        String patientSubject = "Appointment Reschedule Confirmed";
+        String patientMessage = String.format(
+                "Your appointment #%d has been successfully rescheduled to %s at %s.",
+                appointment.getId(),
+                appointment.getAppointmentDate(),
+                appointment.getAppointmentTime());
+        sendToPatient(patient, appointment.getPatientId(), patientSubject, patientMessage);
+        
+        // Real-time WebSocket Push
+        sendWebSocketNotification(appointment.getPatientId(), "APPOINTMENT_STATUS", appointment.getId(), "RESCHEDULED", patientMessage);
+        sendWebSocketNotification(appointment.getDoctorId(), "APPOINTMENT_STATUS", appointment.getId(), "RESCHEDULED", doctorMessage);
     }
 
     public void notifyReminder(Appointment appointment) {
@@ -188,6 +242,27 @@ public class NotificationIntegrationService {
         try {
             restTemplate.postForEntity(notificationServiceBaseUrl + "/notifications/send", request, Void.class);
         } catch (Exception ignored) {
+        }
+    }
+    
+    private void sendWebSocketNotification(Long userId, String type, Long appointmentId, String newStatus, String message) {
+        if (userId == null) return;
+        try {
+            String url = notificationServiceBaseUrl + "/ws-api/send/" + userId;
+            java.util.Map<String, Object> payload = new java.util.HashMap<>();
+            payload.put("type", type);
+            payload.put("appointmentId", appointmentId);
+            payload.put("newStatus", newStatus);
+            payload.put("message", message);
+            payload.put("timestamp", java.time.LocalDateTime.now().toString());
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<java.util.Map<String, Object>> request = new HttpEntity<>(payload, headers);
+            
+            restTemplate.postForObject(url, request, Void.class);
+        } catch (Exception e) {
+            System.err.println("Failed to send WebSocket notification: " + e.getMessage());
         }
     }
 }

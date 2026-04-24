@@ -85,32 +85,26 @@ export default function DoctorPrescriptionsPage() {
     try {
       setSubmitting(true);
       
-      const medsStr = validMedicines.map(m => m.name).join(", ");
-      const dosageStr = validMedicines.map(m => m.dosage).join(", ");
-      const instrStr = validMedicines.map(m => m.instructions || "-").join(", ");
       const docId = doctorProfileId || user.id;
 
-      const fd = new FormData();
-      fd.append("patientId", formData.patientId);
-      fd.append("medication", medsStr);
-      fd.append("dosage", dosageStr);
-      fd.append("instructions", instrStr);
-      fd.append("notes", formData.notes || "");
+      const payload = {
+        patientId: parseInt(formData.patientId),
+        doctorId: docId,
+        doctorName: user.name,
+        diagnosis: "General Consultation", // We can add this to form later if needed
+        medications: validMedicines.map(m => ({
+            medicationName: m.name,
+            strength: "", // Optional
+            frequency: m.dosage,
+            duration: "", // Optional
+            instructions: m.instructions
+        })),
+        notes: formData.notes || ""
+      };
 
-      // Send as multipart/form-data with doctorId query param
-      await api.post(`/prescriptions?doctorId=${docId}`, fd, {
-        headers: { "Content-Type": "multipart/form-data" }
-      });
+      await api.post(`/prescriptions`, payload);
       
-      // Notify patient
-      try {
-         await api.post('/notifications', {
-           userId: formData.patientId,
-           message: `Dr. ${user.name} has issued a new prescription for you.`,
-           type: "PRESCRIPTION",
-           read: false
-         });
-      } catch (e) {}
+      // Notification is handled by the backend controller
 
       alert("Prescription issued successfully.");
       setFormData({ patientId: "", notes: "" });
@@ -207,12 +201,12 @@ export default function DoctorPrescriptionsPage() {
                   <div key={pre.id} style={{ display: "flex", flexDirection: "column", padding: "16px", border: "1px solid var(--border)", borderRadius: "var(--radius-md)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
                       <span style={{ fontWeight: '600', color: 'var(--primary)' }}>Patient {pre.patientId}</span>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{new Date(pre.date).toLocaleDateString()}</span>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{new Date(pre.issuedDate || new Date()).toLocaleDateString()}</span>
                     </div>
                     <p style={{ margin: "0 0 8px", fontSize: "0.9rem", color: "var(--text-main)" }}>
-                      {pre.medicines?.length || 0} medicines prescribed.
+                      {pre.medications?.length || 0} medicines prescribed.
                     </p>
-                    <button className="btn btn-outline" style={{ padding: "4px", fontSize: "0.8rem", width: "max-content" }}>View Details</button>
+                    <button className="btn btn-outline" style={{ padding: "4px", fontSize: "0.8rem", width: "max-content" }} onClick={() => window.open(`/patient/dashboard/prescriptions/${pre.id}/print`, '_blank')}>View / Print</button>
                   </div>
                 ))}
                </div>

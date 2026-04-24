@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import { Calendar, Video, CheckCircle, XCircle } from "lucide-react";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import toast from "react-hot-toast";
+import { connectWebSocket, disconnectWebSocket } from "../../services/WebSocketService";
 import "../../components/DashboardShared.css";
 
 export default function DoctorAppointmentsPage() {
@@ -17,9 +19,9 @@ export default function DoctorAppointmentsPage() {
     const stored = localStorage.getItem("user");
     return stored && stored !== "undefined" ? JSON.parse(stored) : null;
   }, []);
-
   useEffect(() => {
-    const fetchAppointments = async () => {
+    const fetchAppointments = async (showLoading = true) => {
+      if (showLoading) setLoading(true);
       try {
         let doctorId = user.id;
         try {
@@ -37,10 +39,27 @@ export default function DoctorAppointmentsPage() {
         console.error(err);
         setError("Failed to load appointments.");
       } finally {
-        setLoading(false);
+        if (showLoading) setLoading(false);
       }
     };
-    fetchAppointments();
+    
+    fetchAppointments(true);
+
+    // Polling for real-time updates every 10 seconds (fallback)
+    const intervalId = setInterval(() => {
+      fetchAppointments(false);
+    }, 10000);
+
+    // Connect WebSocket
+    connectWebSocket(user.id, (message) => {
+      fetchAppointments(false);
+    });
+
+    return () => {
+      clearInterval(intervalId);
+      disconnectWebSocket();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id, user.email]);
 
   const handleActionClick = (apptId, action) => {

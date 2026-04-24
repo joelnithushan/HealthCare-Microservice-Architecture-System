@@ -127,7 +127,7 @@ const DoctorOverview = () => {
                     </div>
                     <div style={s.scheduleLine} />
                     <div style={s.scheduleContent}>
-                      <div style={s.schedulePatient}>Patient #{apt.patientId || 'N/A'}</div>
+                      <div style={s.schedulePatient}>{apt.patientName || `Patient #${apt.patientId || 'N/A'}`}</div>
                       <div style={s.scheduleActions}>
                         <span style={{ ...s.scheduleStatus, background: sc.bg, color: sc.color }}>{apt.status}</span>
                         {apt.status === 'ACCEPTED' && (

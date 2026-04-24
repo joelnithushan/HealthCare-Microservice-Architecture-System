@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import { Calendar, Video, CreditCard, XCircle } from "lucide-react";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import toast from "react-hot-toast";
+import { connectWebSocket, disconnectWebSocket } from "../../services/WebSocketService";
 import "../../components/DashboardShared.css";
 
 export default function PatientAppointmentsPage() {
@@ -13,6 +15,8 @@ export default function PatientAppointmentsPage() {
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState("UPCOMING"); // UPCOMING, PENDING, ACCEPTED, CANCELLED, COMPLETED, ALL
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, apptId: null });
+  const [rescheduleConfig, setRescheduleConfig] = useState({ isOpen: false, apptId: null, doctorId: null, date: "", timeSlot: "" });
+  const [rescheduling, setRescheduling] = useState(false);
   
   const user = React.useMemo(() => {
     const stored = localStorage.getItem("user");
@@ -48,12 +52,20 @@ export default function PatientAppointmentsPage() {
     // Initial fetch with loading state
     fetchAppointments(true);
 
-    // Polling for real-time updates every 10 seconds
+    // Polling for real-time updates every 10 seconds (fallback)
     const intervalId = setInterval(() => {
       fetchAppointments(false);
     }, 10000);
 
-    return () => clearInterval(intervalId);
+    // Connect WebSocket
+    connectWebSocket(user.id, (message) => {
+      fetchAppointments(false);
+    });
+
+    return () => {
+      clearInterval(intervalId);
+      disconnectWebSocket();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id]);
 
@@ -70,6 +82,46 @@ export default function PatientAppointmentsPage() {
       setAppointments(prev => prev.map(a => a.id === apptId ? { ...a, status: 'CANCELLED' } : a));
     } catch (err) {
       alert("Failed to cancel the appointment.");
+    }
+  };
+
+  const handleRescheduleClick = (appt) => {
+    setRescheduleConfig({
+      isOpen: true,
+      apptId: appt.id,
+      doctorId: appt.doctorId,
+      date: appt.appointmentDate,
+      timeSlot: appt.appointmentTime
+    });
+  };
+
+  const executeReschedule = async (e) => {
+    e.preventDefault();
+    const { apptId, doctorId, date, timeSlot } = rescheduleConfig;
+    if (!apptId || !date || !timeSlot) return;
+
+    setRescheduling(true);
+    try {
+      // Check availability first
+      const availRes = await api.get(`/appointments/check-availability?doctorId=${doctorId}&date=${date}&timeSlot=${timeSlot}`);
+      if (!availRes.data.available) {
+        toast.error("Selected time slot is not available");
+        setRescheduling(false);
+        return;
+      }
+
+      await api.put(`/appointments/${apptId}/reschedule`, {
+        newDate: date,
+        newTimeSlot: timeSlot
+      });
+      
+      toast.success("Appointment rescheduled successfully");
+      setRescheduleConfig({ isOpen: false, apptId: null, doctorId: null, date: "", timeSlot: "" });
+      fetchAppointments(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to reschedule the appointment");
+    } finally {
+      setRescheduling(false);
     }
   };
 
@@ -190,9 +242,14 @@ export default function PatientAppointmentsPage() {
                             </button>
                           )}
                           {(a.status === 'PENDING_PAYMENT' || a.status === 'PENDING' || a.status === 'CONFIRMED') && (
-                            <button className="btn btn-outline" style={{ padding: '6px 10px', fontSize: '0.8rem', color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => handleCancelClick(a.id)}>
-                              <XCircle size={14} /> Cancel
-                            </button>
+                            <>
+                              <button className="btn btn-outline" style={{ padding: '6px 10px', fontSize: '0.8rem', color: 'var(--primary)', borderColor: 'var(--primary)' }} onClick={() => handleRescheduleClick(a)}>
+                                <Calendar size={14} /> Reschedule
+                              </button>
+                              <button className="btn btn-outline" style={{ padding: '6px 10px', fontSize: '0.8rem', color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => handleCancelClick(a.id)}>
+                                <XCircle size={14} /> Cancel
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -214,6 +271,51 @@ export default function PatientAppointmentsPage() {
         onConfirm={executeCancel}
         onCancel={() => setConfirmConfig({ isOpen: false, apptId: null })}
       />
+
+      {rescheduleConfig.isOpen && (
+        <div className="modal-overlay" onClick={() => setRescheduleConfig({ ...rescheduleConfig, isOpen: false })}>
+          <div className="dash-card" style={{ maxWidth: '400px', width: '100%', margin: 'auto' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Reschedule Appointment</h3>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }} onClick={() => setRescheduleConfig({ ...rescheduleConfig, isOpen: false })}>✕</button>
+            </div>
+            
+            <form onSubmit={executeReschedule}>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-main)', fontSize: '0.9rem', fontWeight: '500' }}>New Date</label>
+                <input 
+                  type="date" 
+                  value={rescheduleConfig.date} 
+                  min={today}
+                  onChange={e => setRescheduleConfig({ ...rescheduleConfig, date: e.target.value })}
+                  className="form-input"
+                  style={{ width: '100%', padding: '10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}
+                  required
+                />
+              </div>
+              
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-main)', fontSize: '0.9rem', fontWeight: '500' }}>New Time</label>
+                <input 
+                  type="time" 
+                  value={rescheduleConfig.timeSlot} 
+                  onChange={e => setRescheduleConfig({ ...rescheduleConfig, timeSlot: e.target.value })}
+                  className="form-input"
+                  style={{ width: '100%', padding: '10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}
+                  required
+                />
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button type="button" className="btn btn-outline" onClick={() => setRescheduleConfig({ ...rescheduleConfig, isOpen: false })}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={rescheduling}>
+                  {rescheduling ? 'Rescheduling...' : 'Confirm Reschedule'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

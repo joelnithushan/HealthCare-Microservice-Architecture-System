@@ -49,6 +49,7 @@ import DoctorRequestsPage from "./pages/doctor/DoctorRequestsPage";
 import DoctorPatientsPage from "./pages/doctor/DoctorPatientsPage";
 import DoctorPrescriptionsPage from "./pages/doctor/DoctorPrescriptionsPage";
 import DoctorNotificationsPage from "./pages/doctor/DoctorNotificationsPage";
+import PrescriptionPrintPage from "./pages/PrescriptionPrintPage";
 import { Outlet } from "react-router-dom";
 
 const StandardLayout = () => (
@@ -344,6 +345,10 @@ function App() {
                   element={<PatientPrescriptionsPage />}
                 />
                 <Route
+                  path="prescriptions/:id/print"
+                  element={<PrescriptionPrintPage />}
+                />
+                <Route
                   path="notifications"
                   element={<PatientNotificationsPage />}
                 />
@@ -375,6 +380,10 @@ function App() {
                 <Route
                   path="prescriptions"
                   element={<DoctorPrescriptionsPage />}
+                />
+                <Route
+                  path="prescriptions/:id/print"
+                  element={<PrescriptionPrintPage />}
                 />
                 <Route path="notifications"
                   element={<DoctorNotificationsPage />}

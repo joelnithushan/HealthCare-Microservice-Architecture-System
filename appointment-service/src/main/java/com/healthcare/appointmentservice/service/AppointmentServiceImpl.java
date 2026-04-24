@@ -139,6 +139,42 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
+    public AppointmentResponse rescheduleAppointment(Long id, LocalDate newDate, LocalTime newTime) {
+        Appointment appointment = appointmentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Appointment not found with ID: " + id));
+
+        if (appointment.getStatus() != AppointmentStatus.PENDING && appointment.getStatus() != AppointmentStatus.CONFIRMED) {
+            throw new RuntimeException("Only pending or confirmed appointments can be rescheduled.");
+        }
+
+        validateDateTime(newDate, newTime);
+
+        boolean isBusy = appointmentRepository.existsByDoctorIdAndAppointmentDateAndAppointmentTimeAndStatusIn(
+                appointment.getDoctorId(), newDate, newTime, BUSY_STATUSES
+        );
+        
+        if (isBusy) {
+            throw new RuntimeException("Selected time slot is not available");
+        }
+
+        appointment.setAppointmentDate(newDate);
+        appointment.setAppointmentTime(newTime);
+        Appointment updated = appointmentRepository.save(appointment);
+        
+        notificationIntegrationService.notifyAppointmentRescheduled(updated);
+        
+        return mapToResponse(updated);
+    }
+    
+    @Override
+    public boolean checkAvailability(Long doctorId, LocalDate date, LocalTime time) {
+        validateDateTime(date, time);
+        return !appointmentRepository.existsByDoctorIdAndAppointmentDateAndAppointmentTimeAndStatusIn(
+                doctorId, date, time, BUSY_STATUSES
+        );
+    }
+
+    @Override
     public AppointmentResponse updateAppointmentStatus(Long id, String status) {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Appointment not found with ID: " + id));

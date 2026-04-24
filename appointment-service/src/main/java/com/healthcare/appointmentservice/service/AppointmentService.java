@@ -16,6 +16,10 @@ public interface AppointmentService {
     AppointmentResponse getAppointmentById(Long id);
 
     AppointmentResponse updateAppointment(Long id, AppointmentRequest request);
+    
+    AppointmentResponse rescheduleAppointment(Long id, LocalDate newDate, LocalTime newTime);
+    
+    boolean checkAvailability(Long doctorId, LocalDate date, LocalTime time);
 
     AppointmentResponse updateAppointmentStatus(Long id, String status);
 

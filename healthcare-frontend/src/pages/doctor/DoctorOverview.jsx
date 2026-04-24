@@ -155,16 +155,41 @@ export default function DoctorOverview() {
             ) : pastAppointments.length === 0 ? (
                <div className="empty-state" style={{ padding: '20px' }}><p>No patients consulted yet.</p></div>
             ) : (
-               <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
-                 {Array.from(new Set(pastAppointments.map(a => a.patientId))).slice(0, 4).map((pid, idx) => (
-                   <div key={idx} style={{ padding: '16px', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', minWidth: '150px', textAlign: 'center' }}>
-                     <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#E2E8F0', margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'var(--primary)' }}>
-                       P{pid}
-                     </div>
-                     <p style={{ margin: 0, fontWeight: '500', fontSize: '0.9rem' }}>Patient {pid}</p>
-                   </div>
-                 ))}
-               </div>
+                <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
+                  {(() => {
+                    const recent = [];
+                    const seen = new Set();
+                    // Sort by date descending to get the most recent patients first
+                    const sorted = [...pastAppointments].sort((a, b) => {
+                      const dateA = new Date(a.appointmentDate + 'T' + (a.appointmentTime || '00:00'));
+                      const dateB = new Date(b.appointmentDate + 'T' + (b.appointmentTime || '00:00'));
+                      return dateB - dateA;
+                    });
+                    
+                    for (const a of sorted) {
+                      if (!seen.has(a.patientId)) {
+                        seen.add(a.patientId);
+                        recent.push(a);
+                      }
+                    }
+                    
+                    return recent.slice(0, 4).map((appt, idx) => (
+                      <div key={idx} style={{ padding: '16px', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', minWidth: '150px', textAlign: 'center', backgroundColor: 'var(--bg-white)', transition: 'transform 0.2s', cursor: 'pointer' }}
+                        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#E2E8F0', margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'var(--primary)', textTransform: 'uppercase', fontSize: '1.1rem' }}>
+                          {(appt.patientName || 'P').charAt(0)}
+                        </div>
+                        <p style={{ margin: 0, fontWeight: '600', fontSize: '0.85rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {appt.patientName || `Patient ${appt.patientId}`}
+                        </p>
+                        <p style={{ margin: '4px 0 0', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                          ID: #{appt.patientId}
+                        </p>
+                      </div>
+                    ));
+                  })()}
+                </div>
             )}
           </div>
 
