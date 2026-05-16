@@ -264,17 +264,6 @@ Healthcare-Microservices-Platform/
 
 ---
 
-## Team
-
-| Name | Role |
-|---|---|
-| **Joel Nithushan** | Backend Architecture, API Gateway, User & Payment Services |
-| **Vaishnavi** | Appointment Service, Notification Service |
-| **Kanistan** | Doctor Service, Telemedicine Service |
-| **Thushalini** | Frontend (React), AI Symptom Checker |
-
----
-
 ## Academic Context
 
 Developed for **SE3020 — Distributed Systems** as a full-stack, production-quality demonstration of:
