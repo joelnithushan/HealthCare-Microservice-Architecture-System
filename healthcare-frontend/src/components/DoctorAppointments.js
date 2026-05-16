@@ -56,9 +56,9 @@ const DoctorAppointments = () => {
               <p><strong>Date:</strong> {app.appointmentDate} at {app.appointmentTime}</p>
               <p><strong>Status:</strong> {app.status}</p>
               <div style={{ marginTop: '1rem', display: 'flex', gap: '10px' }}>
-                <button 
+                <button
                   className="flat-btn"
-                  onClick={() => navigate(`/dashboard/consult/${app.id}`)}
+                  onClick={() => navigate(`/doctor/dashboard/consult/${app.id}`)}
                 >
                   Start Consultation
                 </button>

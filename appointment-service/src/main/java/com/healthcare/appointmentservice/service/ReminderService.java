@@ -34,8 +34,9 @@ public class ReminderService {
         for (Appointment appointment : upcomingAppointments) {
             long minutesUntil = ChronoUnit.MINUTES.between(now, appointment.getAppointmentTime());
 
-            // If the appointment is within the next 5 minutes
-            if (minutesUntil >= 0 && minutesUntil <= 5) {
+            // Accept -1 to handle scheduler jitter: if the scheduler fires
+            // one second after the appointment time, truncation gives -1.
+            if (minutesUntil >= -1 && minutesUntil <= 5) {
                 try {
                     notificationIntegrationService.notifyReminder(appointment);
                     appointment.setReminderSent(true);

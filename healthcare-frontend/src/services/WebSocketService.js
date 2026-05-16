@@ -3,9 +3,15 @@ import { Stomp } from '@stomp/stompjs';
 import toast from 'react-hot-toast';
 
 let stompClient = null;
+const MAX_RECONNECT_DELAY = 30000;
 
-export const connectWebSocket = (userId, onMessageReceived) => {
-    const socket = new SockJS('http://localhost:8080/ws');
+const scheduleReconnect = (userId, onMessageReceived, delay) => {
+    setTimeout(() => connectWebSocket(userId, onMessageReceived, Math.min(delay * 2, MAX_RECONNECT_DELAY)), delay);
+};
+
+export const connectWebSocket = (userId, onMessageReceived, reconnectDelay = 1000) => {
+    const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+    const socket = new SockJS(`${baseUrl}/ws`);
     stompClient = Stomp.over(socket);
     
     // Disable debug logging to keep console clean
@@ -26,8 +32,7 @@ export const connectWebSocket = (userId, onMessageReceived) => {
         });
     }, function (error) {
         console.error('WebSocket connection error:', error);
-        // Auto-reconnect after 5 seconds
-        setTimeout(() => connectWebSocket(userId, onMessageReceived), 5000);
+        scheduleReconnect(userId, onMessageReceived, reconnectDelay);
     });
 };
 

@@ -40,26 +40,38 @@ export default function VideoConsultation() {
   const isVideo = appointment?.appointmentType === "VIDEO" || appointment?.appointmentType === "VIDEO_CONSULTATION";
 
   useEffect(() => {
-    if (appointment && appointment.status === "CONFIRMED" && isVideo) {
-      // Fetch or create session from telemedicine service
-      api.get(`/telemedicine/sessions/appointment/${appointmentId}`)
-        .then(res => {
+    if (!appointment || appointment.status !== "CONFIRMED" || !isVideo) return;
+    let cancelled = false;
+
+    const initSession = async () => {
+      try {
+        const res = await api.get(`/telemedicine/sessions/appointment/${appointmentId}`);
+        if (!cancelled) {
           setJitsiUrl(res.data.sessionUrl);
           api.put(`/telemedicine/sessions/${res.data.id}/start`).catch(() => {});
-        })
-        .catch(err => {
-          if (err.response?.status === 404) {
-            api.post('/telemedicine/sessions', {
+        }
+      } catch (err) {
+        if (cancelled) return;
+        if (err.response?.status === 404) {
+          try {
+            const res = await api.post('/telemedicine/sessions', {
               appointmentId: appointment.id,
               doctorId: appointment.doctorId,
               patientId: appointment.patientId
-            }).then(res => {
+            });
+            if (!cancelled) {
               setJitsiUrl(res.data.sessionUrl);
               api.put(`/telemedicine/sessions/${res.data.id}/start`).catch(() => {});
-            }).catch(e => console.error("Failed to create session", e));
+            }
+          } catch (e) {
+            if (!cancelled) console.error("Failed to create session", e);
           }
-        });
-    }
+        }
+      }
+    };
+
+    initSession();
+    return () => { cancelled = true; };
   }, [appointment, appointmentId, isVideo]);
 
   const redirectPath = user?.role === "DOCTOR"

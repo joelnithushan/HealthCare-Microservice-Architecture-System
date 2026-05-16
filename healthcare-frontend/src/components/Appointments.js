@@ -61,7 +61,7 @@ const Appointments = () => {
         <div className="flat-card" style={styles.emptyState}>
           <div style={{ fontSize: 48, marginBottom: 12 }}></div>
           <p style={{ color: 'var(--text-muted)' }}>You don't have any appointments yet.</p>
-          <button onClick={() => navigate('/dashboard/book-appointment')} className="flat-btn" style={{ marginTop: '1rem' }}>
+          <button onClick={() => navigate('/patient/dashboard/doctors')} className="flat-btn" style={{ marginTop: '1rem' }}>
              Book your first appointment
           </button>
         </div>
@@ -103,13 +103,13 @@ const Appointments = () => {
                 {app.status === 'ACCEPTED' && (
                   <div style={styles.actions}>
                     <button
-                      onClick={() => navigate(`/dashboard/pay/${app.id}`)}
+                      onClick={() => navigate(`/patient/dashboard/pay/${app.id}`)}
                       className="flat-btn-outline"
                     >
                        Pay Now
                     </button>
                     <button
-                      onClick={() => navigate(`/dashboard/consult/${app.id}`)}
+                      onClick={() => navigate(`/patient/dashboard/consult/${app.id}`)}
                       className="flat-btn"
                     >
                        Join Video

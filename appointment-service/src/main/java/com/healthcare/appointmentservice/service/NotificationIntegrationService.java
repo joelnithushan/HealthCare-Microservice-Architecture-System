@@ -10,12 +10,16 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 
 @Service
 public class NotificationIntegrationService {
+
+    private static final Logger logger = LoggerFactory.getLogger(NotificationIntegrationService.class);
 
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -241,7 +245,8 @@ public class NotificationIntegrationService {
     private void sendNotification(NotificationRequest request) {
         try {
             restTemplate.postForEntity(notificationServiceBaseUrl + "/notifications/send", request, Void.class);
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            logger.warn("Failed to send notification to user {}: {}", request.getUserId(), e.getMessage());
         }
     }
     

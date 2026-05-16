@@ -82,7 +82,7 @@ spring:
                 fallbackUri: forward:/fallback/notification-service
 
         - id: notification-websocket
-          uri: http://${NOTIFICATION_SERVICE_HOST:localhost}:8084
+          uri: ws://${NOTIFICATION_SERVICE_HOST:localhost}:8084
           predicates:
             - Path=/ws/**
 
@@ -125,7 +125,7 @@ spring:
           predicates:
             - Path=/api/sessions/**
           filters:
-            - StripPrefix=1
+            - RewritePath=/api/sessions/(?<segment>.*), /telemedicine/sessions/${segment}
         - id: telemedicine-service-direct
           uri: http://${TELEMEDICINE_SERVICE_HOST:localhost}:8086
           predicates:

@@ -68,6 +68,15 @@ public class UserServiceImpl implements UserService {
     @Value("${google.client.id:}")
     private String googleClientId;
 
+    @Value("${seed.admin.password:Admin@123}")
+    private String seedAdminPassword;
+
+    @Value("${seed.doctor.password:Doctor@123}")
+    private String seedDoctorPassword;
+
+    @Value("${seed.patient.password:Patient@123}")
+    private String seedPatientPassword;
+
     private static final int MIN_PASSWORD_LENGTH = 8;
 
     private void ensurePasswordStrength(String raw) {
@@ -91,7 +100,7 @@ public class UserServiceImpl implements UserService {
             User admin = new User();
             admin.setName("Super Admin");
             admin.setEmail("admin@gmail.com");
-            admin.setPassword(passwordEncoder.encode("Admin@123"));
+            admin.setPassword(passwordEncoder.encode(seedAdminPassword));
             admin.setRole(Role.ADMIN);
             admin.setSuspended(false);
             admin.setApproved(true);
@@ -142,7 +151,7 @@ public class UserServiceImpl implements UserService {
                     doc.setMobileNumber(data[3]);
                     doc.setSpecialization(data[4]);
                     doc.setHospitalAttached(data[5]);
-                    doc.setPassword(passwordEncoder.encode("Doctor@123"));
+                    doc.setPassword(passwordEncoder.encode(seedDoctorPassword));
                     doc.setRole(Role.DOCTOR);
                     doc.setSlmcNumber("SLMC/" + (int)(Math.random() * 90000 + 10000));
                     doc.setApproved(true);
@@ -165,7 +174,7 @@ public class UserServiceImpl implements UserService {
                 User patient = new User();
                 patient.setName("Test Patient");
                 patient.setEmail("patient@gmail.com");
-                patient.setPassword(passwordEncoder.encode("Patient@123"));
+                patient.setPassword(passwordEncoder.encode(seedPatientPassword));
                 patient.setRole(Role.PATIENT);
                 patient.setNic("961234567V");
                 patient.setMobileNumber("0779999999");
