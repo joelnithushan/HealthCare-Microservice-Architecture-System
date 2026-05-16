@@ -10,12 +10,16 @@ import com.healthcare.appointmentservice.repo.AppointmentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -42,7 +46,27 @@ public class AppointmentServiceImpl implements AppointmentService {
             AppointmentStatus.CONFIRMED
     );
 
+    // Issue #9: Enforce valid status transitions — prevents PENDING → COMPLETED etc.
+    private static final Map<AppointmentStatus, Set<AppointmentStatus>> VALID_TRANSITIONS;
+    static {
+        VALID_TRANSITIONS = new EnumMap<>(AppointmentStatus.class);
+        VALID_TRANSITIONS.put(AppointmentStatus.PENDING_PAYMENT,
+                Set.of(AppointmentStatus.PENDING, AppointmentStatus.CANCELLED));
+        VALID_TRANSITIONS.put(AppointmentStatus.PENDING,
+                Set.of(AppointmentStatus.CONFIRMED, AppointmentStatus.ACCEPTED,
+                       AppointmentStatus.REJECTED, AppointmentStatus.CANCELLED));
+        VALID_TRANSITIONS.put(AppointmentStatus.ACCEPTED,
+                Set.of(AppointmentStatus.CONFIRMED, AppointmentStatus.REJECTED,
+                       AppointmentStatus.CANCELLED));
+        VALID_TRANSITIONS.put(AppointmentStatus.CONFIRMED,
+                Set.of(AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED));
+        VALID_TRANSITIONS.put(AppointmentStatus.COMPLETED, Set.of());
+        VALID_TRANSITIONS.put(AppointmentStatus.REJECTED,  Set.of());
+        VALID_TRANSITIONS.put(AppointmentStatus.CANCELLED, Set.of());
+    }
+
     @Override
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public AppointmentResponse createAppointment(AppointmentRequest request) {
         LocalDate apptDate = request.getAppointmentDate();
         LocalTime apptTime = request.getAppointmentTime();
@@ -187,6 +211,12 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
         if (currentStatus == AppointmentStatus.COMPLETED && newStatus != AppointmentStatus.COMPLETED) {
             throw new RuntimeException("Cannot change status of a completed appointment.");
+        }
+
+        Set<AppointmentStatus> allowed = VALID_TRANSITIONS.getOrDefault(currentStatus, Set.of());
+        if (!allowed.contains(newStatus)) {
+            throw new RuntimeException(
+                    "Invalid appointment status transition from " + currentStatus + " to " + newStatus);
         }
 
         appointment.setStatus(newStatus);

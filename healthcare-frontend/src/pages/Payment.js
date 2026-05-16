@@ -35,8 +35,14 @@ export default function Payment() {
         if (apptRes.data?.doctorId) {
           try {
             const dRes = await api.get(`/doctors/${apptRes.data.doctorId}`);
-            if (dRes.data?.consultationFee) setAmount(Number(dRes.data.consultationFee));
-          } catch (e) { /* keep default if fee check fails */ }
+            if (dRes.data?.consultationFee) {
+              setAmount(Number(dRes.data.consultationFee));
+            } else {
+              toast("Could not retrieve consultation fee — using default LKR 2,500", { icon: "⚠️" });
+            }
+          } catch (e) {
+            toast("Could not retrieve consultation fee — using default LKR 2,500", { icon: "⚠️" });
+          }
         }
 
         // If we are returning from a successful PayHere transaction, update the backend status.

@@ -4,6 +4,7 @@ import com.healthcare.doctorservice.model.Prescription;
 import com.healthcare.doctorservice.repo.PrescriptionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -14,6 +15,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
     private PrescriptionRepository prescriptionRepository;
 
     @Override
+    @Transactional
     public Prescription createPrescription(Prescription prescription) {
         if (prescriptionRepository.findByAppointmentId(prescription.getAppointmentId()).isPresent()) {
             throw new RuntimeException("Prescription already exists for this appointment.");
