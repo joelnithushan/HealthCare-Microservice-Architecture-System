@@ -68,13 +68,13 @@ public class UserServiceImpl implements UserService {
     @Value("${google.client.id:}")
     private String googleClientId;
 
-    @Value("${seed.admin.password:Admin@123}")
+    @Value("${seed.admin.password}")
     private String seedAdminPassword;
 
-    @Value("${seed.doctor.password:Doctor@123}")
+    @Value("${seed.doctor.password}")
     private String seedDoctorPassword;
 
-    @Value("${seed.patient.password:Patient@123}")
+    @Value("${seed.patient.password}")
     private String seedPatientPassword;
 
     private static final int MIN_PASSWORD_LENGTH = 8;
